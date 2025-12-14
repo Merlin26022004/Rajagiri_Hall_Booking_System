@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="section-title mb-0">
+            Availability – {{ space.name }}
+        </h2>
+        <a href="{% url 'book_space' %}?space_id={{ space.id }}"
+           class="btn btn-book btn-sm">
+            Book this Space
+        </a>
+    </div>
+
+    <p class="text-muted">
+        Type: {{ space.get_type_display }} • Capacity: {{ space.capacity }}
+        {% if space.location %} • Location: {{ space.location }}{% endif %}
+    </p>
+
+    <div class="row g-4 mt-3">
+        <div class="col-md-7">
+            <div class="space-card p-3 h-100">
+                <h5 class="fw-semibold mb-3">Upcoming Bookings</h5>
+
+                {% if bookings %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Requested By</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in bookings %}
+                            <tr>
+                                <td>{{ b.date }}</td>
+                                <td>{{ b.start_time }} – {{ b.end_time }}</td>
+                                <td class="small">{{ b.requested_by.username }}</td>
+                                <td>
+                                    {% if b.status == "Pending" %}
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    {% elif b.status == "Approved" %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% elif b.status == "Rejected" %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                    {% elif b.status == "Cancelled" %}
+                                        <span class="badge bg-secondary">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ b.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">
+                    No upcoming bookings for this space.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="space-card p-3 h-100">
+                <h5 class="fw-semibold mb-3">Blocked Dates</h5>
+                {% if blocked_dates %}
+                    <ul class="small mb-0">
+                        {% for bd in blocked_dates %}
+                        <li>
+                            {{ bd.date }} – {{ bd.reason|default:"Blocked" }}
+                            {% if not bd.space %}<span class="text-muted">(All spaces)</span>{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted small mb-0">
+                        No upcoming blocked dates for this space.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

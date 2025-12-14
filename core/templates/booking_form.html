@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="section-title mb-3">Book a Space</h2>
+
+    <form method="post" class="space-card p-4">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Select Space</label>
+            <select name="space_id" id="spaceSelect" class="form-select" required>
+                <option value="">-- Choose Space --</option>
+                {% for space in spaces %}
+                <option value="{{ space.id }}"
+                    {% if selected_space and selected_space.id == space.id %}selected{% endif %}>
+                    {{ space.name }} ({{ space.get_type_display }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Date</label>
+            <input type="date" name="date" id="dateInput" class="form-control" required>
+            <small class="text-muted d-block mt-1">
+                Same-day bookings allowed if time does not overlap.
+            </small>
+        </div>
+
+        <div id="existingSlots" class="alert alert-info d-none"></div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-semibold">Start Time</label>
+                <input type="time" name="start_time" class="form-control" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-semibold">End Time</label>
+                <input type="time" name="end_time" class="form-control" required>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Expected Count</label>
+            <input type="number" name="expected_count" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Purpose</label>
+            <textarea name="purpose" rows="2" class="form-control" required></textarea>
+        </div>
+
+        <button class="btn btn-book px-4">Submit</button>
+    </form>
+</div>
+
+<script>
+document.getElementById("dateInput").addEventListener("change", loadSlots);
+document.getElementById("spaceSelect").addEventListener("change", loadSlots);
+
+function loadSlots(){
+    const space = document.getElementById("spaceSelect").value;
+    const date = document.getElementById("dateInput").value;
+    if(!space || !date) return;
+
+    fetch(`/api/space-day-slots/?space_id=${space}&date=${date}`)
+    .then(r => r.json())
+    .then(data => {
+        const box = document.getElementById("existingSlots");
+
+        if(data.length === 0){
+            box.classList.add("d-none");
+            return;
+        }
+
+        box.classList.remove("d-none");
+        box.innerHTML = "<b>Already booked time slots:</b><br>" +
+            data.map(t => `❌ ${t.start} – ${t.end}`).join("<br>");
+    });
+}
+</script>
+
+{% endblock %}

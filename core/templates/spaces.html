@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="section-title mb-0">All Spaces</h2>
+        <a href="{% url 'book_space' %}" class="btn btn-book btn-sm">
+            + New Booking
+        </a>
+    </div>
+
+    {% if spaces %}
+    <div class="row g-4">
+        {% for space in spaces %}
+        <div class="col-md-4">
+            <div class="space-card p-3 h-100">
+                <h5 class="fw-bold mb-1">{{ space.name }}</h5>
+                <p class="text-muted small mb-2">
+                    {{ space.get_type_display }} • Capacity: {{ space.capacity }}
+                </p>
+                <p class="small mb-3">
+                    {{ space.description|default:"Suitable for seminars, classes and talks." }}
+                </p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'space_availability' space.id %}"
+                       class="btn btn-sm btn-outline-secondary">
+                        View Availability
+                    </a>
+                    <a href="{% url 'book_space' %}?space_id={{ space.id }}"
+                       class="btn btn-sm btn-book">
+                        Book
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <p class="mb-1">No spaces have been created yet.</p>
+        <p class="mb-0 small">Add spaces from the Django admin under <strong>Core → Spaces</strong>.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

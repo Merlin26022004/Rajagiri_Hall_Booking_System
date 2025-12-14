@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+        <h2 class="section-title mb-3 mb-md-0">Admin Dashboard</h2>
+        <div class="d-flex flex-wrap gap-2">
+            <!-- These can later link to management pages -->
+            <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary btn-sm">
+                Django Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="space-card p-3 h-100">
+                <div class="small text-muted mb-1">Today’s Bookings</div>
+                <div class="h4 mb-0">{{ stats.today_total|default:0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="space-card p-3 h-100">
+                <div class="small text-muted mb-1">Pending Approvals</div>
+                <div class="h4 mb-0 text-warning">{{ stats.pending|default:0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="space-card p-3 h-100">
+                <div class="small text-muted mb-1">Approved (This Week)</div>
+                <div class="h4 mb-0 text-success">{{ stats.week_approved|default:0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="space-card p-3 h-100">
+                <div class="small text-muted mb-1">Blocked Dates</div>
+                <div class="h4 mb-0 text-danger">{{ stats.blocked|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="space-card p-3 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="Pending"  {% if request.GET.status == "Pending" %}selected{% endif %}>Pending</option>
+                    <option value="Approved" {% if request.GET.status == "Approved" %}selected{% endif %}>Approved</option>
+                    <option value="Rejected" {% if request.GET.status == "Rejected" %}selected{% endif %}>Rejected</option>
+                    <option value="Cancelled" {% if request.GET.status == "Cancelled" %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small">Space</label>
+                <select name="space_id" class="form-select form-select-sm">
+                    <option value="">All spaces</option>
+                    {% for s in all_spaces %}
+                    <option value="{{ s.id }}"
+                        {% if request.GET.space_id == s.id|stringformat:"s" %}selected{% endif %}>
+                        {{ s.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small">Date</label>
+                <input type="date" name="date"
+                       class="form-control form-control-sm"
+                       value="{{ request.GET.date }}">
+            </div>
+
+            <div class="col-md-3 text-md-end">
+                <button type="submit" class="btn btn-book btn-sm">Apply Filters</button>
+                <a href="{% url 'admin_dashboard' %}"
+                   class="btn btn-outline-secondary btn-sm">Reset</a>
+            </div>
+        </div>
+    </form>
+
+    {% if bookings %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Space</th>
+                    <th>Requested By</th>
+                    <th>Purpose</th>
+                    <th>Status</th>
+                    <th>Approved By</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{{ b.date }}</td>
+                    <td>{{ b.start_time }} – {{ b.end_time }}</td>
+                    <td>
+                        <strong>{{ b.space.name }}</strong>
+                        <div class="small text-muted">{{ b.space.get_type_display }}</div>
+                    </td>
+                    <td>
+                        {{ b.requested_by.username }}
+                    </td>
+                    <td class="small">{{ b.purpose }}</td>
+                    <td>
+                        {% if b.status == "Pending" %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif b.status == "Approved" %}
+                            <span class="badge bg-success">Approved</span>
+                        {% elif b.status == "Rejected" %}
+                            <span class="badge bg-danger">Rejected</span>
+                        {% elif b.status == "Cancelled" %}
+                            <span class="badge bg-secondary">Cancelled</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark">{{ b.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">
+                        {% if b.approved_by %}
+                            {{ b.approved_by.username }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if b.status == "Pending" %}
+                            <form method="post"
+                                  action="{% url 'approve_booking' b.id %}"
+                                  class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    Approve
+                                </button>
+                            </form>
+                            <form method="post"
+                                  action="{% url 'reject_booking' b.id %}"
+                                  class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    Reject
+                                </button>
+                            </form>
+                        {% elif b.status in "Approved,Pending" %}
+                            <form method="post"
+                                  action="{% url 'admin_cancel_booking' b.id %}"
+                                  class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        onclick="return confirm('Cancel this booking?');">
+                                    Cancel
+                                </button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted small">No actions</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <p class="mb-1">No bookings match the current filters.</p>
+        <p class="mb-0 small">Try changing the status, space or date.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

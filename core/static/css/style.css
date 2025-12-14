@@ -1,0 +1,115 @@
+html, body {
+    height: 100%;
+    margin: 0;
+}
+body {
+    display: flex;
+    flex-direction: column;
+}
+main {
+    flex: 1;
+}
+
+:root {
+    --rajagiri-green: #007D31;      /* New topbar green */
+    --rajagiri-maroon: #145008;     /* Rajagiri red base */
+    --rajagiri-gold:   #F4C542;     /* Highlight golden tone */
+    --rajagiri-cream:  #FFF7E6;     /* Background tint */
+    --rajagiri-dark:   #1A1A1A;     /* Header text black */
+}
+
+/* Body styling */
+body {
+    font-family: "Segoe UI", Roboto, sans-serif;
+    background-color: var(--rajagiri-cream);
+    color: #222;
+}
+
+/* ---------------- PAGE TOP BAR ---------------- */
+.top-bar {
+    background-color: var(--rajagiri-green) !important;
+    color: #fff;
+    font-size: 14px;
+    padding: 6px 0;
+}
+
+/* ---------------- NAV BAR ---------------- */
+.main-nav {
+    background: var(--rajagiri-maroon) !important;
+    border-bottom: 3px solid var(--rajagiri-gold);
+}
+
+.main-nav .nav-link {
+    color: #fff !important;
+    font-weight: 500;
+    margin-left: 20px;
+    transition: 0.3s;
+}
+
+.main-nav .nav-link:hover,
+.main-nav .nav-link.active {
+    color: var(--rajagiri-gold) !important;
+}
+
+/* ---------------- HERO SECTION ---------------- */
+.hero {
+    background: linear-gradient(
+        180deg,
+        var(--rajagiri-cream) 0%,
+        #ffdd9b 100%
+    ) !important;
+    padding: 60px 0;
+    text-align: left;
+}
+
+.hero h1 {
+    color: var(--rajagiri-maroon);
+    font-weight: 700;
+}
+
+.btn-book {
+    background-color: var(--rajagiri-green);
+    border: none;
+    color: white;
+    font-weight: 700;
+    padding: 12px 25px;
+    border-radius: 4px;
+}
+
+.btn-book:hover {
+    filter: brightness(0.88);
+}
+
+/* ---------------- CARDS STYLE ---------------- */
+.space-card {
+    border-radius: 12px;
+    border: 2px solid rgba(0,0,0,0.06);
+    background: #fff;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+    transition: 0.25s;
+}
+
+.space-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+    border-color: var(--rajagiri-maroon);
+}
+
+/* Section heading style modeled after rajagiri.edu */
+.section-title {
+    font-size: 1.6rem;
+    padding-left: 12px;
+    border-left: 5px solid var(--rajagiri-green);
+    font-weight: 800;
+    color: var(--rajagiri-maroon);
+}
+
+/* ---------------- FOOTER ---------------- */
+.footer {
+    background: var(--rajagiri-green);
+    color: #fff;
+    font-size: 14px;
+    padding: 25px 0;
+}
+
+.footer p { margin: 0; }
