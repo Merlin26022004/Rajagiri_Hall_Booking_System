@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include  # <--- CHANGE 1: Import 'include'
 from core import views
 
 urlpatterns = [
@@ -23,8 +23,12 @@ urlpatterns = [
         name="admin_cancel_booking",
     ),
 
-    # Django's own admin site (keep this AFTER the custom /admin/dashboard/ paths)
+    # Django's own admin site
     path("admin/", admin.site.urls),
+
+    # 🔹 CHANGE 2: Add Standard Auth URLs (Login, Password Reset, etc.)
+    # This enables the link {% url 'login' %} to work!
+    path("accounts/", include("django.contrib.auth.urls")),
 
     # Public pages
     path("", views.home, name="home"),
@@ -44,7 +48,7 @@ urlpatterns = [
         name="cancel_booking",
     ),
 
-    # Logout
+    # Logout (You can keep your custom one, or use the one inside 'accounts/')
     path("logout/", views.logout_view, name="logout"),
 
     # API
