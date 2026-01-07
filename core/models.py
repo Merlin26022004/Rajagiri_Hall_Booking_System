@@ -1,33 +1,51 @@
-from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+class CustomUser(models.Model):
+    STUDENT = "STUDENT"
+    FACULTY = "FACULTY"
+    RECEPTIONIST = "RECEPTIONIST"
+    SUPER_ADMIN = "SUPER_ADMIN"
 
-class Space(models.Model):
-    HALL = "HALL"
-    CLASSROOM = "CLASS"
-    LAB = "LAB"
-
-    TYPE_CHOICES = [
-        (HALL, "Hall"),
-        (CLASSROOM, "Classroom"),
-        (LAB, "Lab"),
+    ROLE_CHOICES = [
+        (STUDENT, "Student"),
+        (FACULTY, "Faculty"),
+        (RECEPTIONIST, "Receptionist"),
+        (SUPER_ADMIN, "Super Admin"),
     ]
 
-    name = models.CharField(max_length=100)
-    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
-    location = models.CharField(max_length=100, blank=True)
-    capacity = models.PositiveIntegerField()
-    description = models.TextField(blank=True)
+    full_name = models.CharField(max_length=150)
+    email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=STUDENT)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    # HOD / Lab Incharge / Admin responsible
-    managed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="managed_spaces",
-    )
+    def __str__(self):
+        return f"{self.full_name} ({self.role})"
+
+
+class Hall(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    seating_capacity = models.PositiveIntegerField()
+    facilities = models.TextField(help_text="List available facilities")
+    typical_use_cases = models.TextField(blank=True)
+    booking_considerations = models.TextField(blank=True)
+    image_path = models.CharField(max_length=255, help_text="Path to static image (e.g. static/halls/image.jpg)")
+    is_active = models.BooleanField(default=True)
+    
+    STATUS_AVAILABLE = "Available"
+    STATUS_MAINTENANCE = "Maintenance"
+    STATUS_RESERVED = "Reserved"
+    
+    STATUS_CHOICES = [
+        (STATUS_AVAILABLE, "Available"),
+        (STATUS_MAINTENANCE, "Under Maintenance"),
+        (STATUS_RESERVED, "Reserved (Priority)"),
+    ]
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_AVAILABLE)
 
     def __str__(self):
         return self.name
@@ -46,11 +64,12 @@ class Booking(models.Model):
         (STATUS_CANCELLED, "Cancelled"),
     ]
 
-    space = models.ForeignKey(
-        Space, on_delete=models.CASCADE, related_name="bookings"
+    # Renamed 'space' to 'hall' to match new terminology
+    hall = models.ForeignKey(
+        Hall, on_delete=models.CASCADE, related_name="bookings"
     )
     requested_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        CustomUser,
         on_delete=models.CASCADE,
         related_name="bookings",
     )
@@ -62,11 +81,15 @@ class Booking(models.Model):
     purpose = models.TextField()
     expected_count = models.PositiveIntegerField()
 
+    # New fields for better tracking
+    cancellation_reason = models.TextField(blank=True)
+    rejection_reason = models.TextField(blank=True)
+
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING
     )
     approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        CustomUser,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -77,9 +100,9 @@ class Booking(models.Model):
 
     class Meta:
         ordering = ["-date", "start_time"]
-
+    
     def __str__(self):
-        return f"{self.space.name} on {self.date} ({self.status})"
+        return f"{self.hall.name} on {self.date} ({self.status})"
 
     @property
     def can_cancel(self):
@@ -91,8 +114,8 @@ class Booking(models.Model):
 
 
 class BlockedDate(models.Model):
-    space = models.ForeignKey(
-        Space,
+    hall = models.ForeignKey(
+        Hall,
         null=True,
         blank=True,
         on_delete=models.CASCADE,
@@ -102,9 +125,36 @@ class BlockedDate(models.Model):
     reason = models.CharField(max_length=255, blank=True)
 
     class Meta:
-        unique_together = ("space", "date")
+        unique_together = ("hall", "date")
 
     def __str__(self):
-        if self.space:
-            return f"{self.space.name} blocked on {self.date}"
-        return f"All spaces blocked on {self.date}"
+        if self.hall:
+            return f"{self.hall.name} blocked on {self.date}"
+        return f"All halls blocked on {self.date}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="notifications"
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Notification for {self.user.full_name}: {self.message}"
+
+
+class AuditLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.user} - {self.action}"

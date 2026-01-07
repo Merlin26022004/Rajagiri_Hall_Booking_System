@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <section class="hero">
@@ -6,15 +7,14 @@
         <div class="row align-items-center gy-4">
             <div class="col-md-7">
                 <h1 class="fw-bold mb-3">
-                    Hall, Classroom & Lab Booking
+                    Hall & Venue Booking
                 </h1>
                 <p class="lead mb-4">
                     Plan lectures, exams, and events with ease.
-                    Check real-time availability of halls, classrooms and labs,
+                    Check real-time availability of halls,
                     and submit booking requests in a few clicks.
                 </p>
-                <a href="{% url 'book_space' %}"
-                   class="btn btn-book btn-lg">
+                <a href="{% url 'hall_list' %}" class="btn btn-book btn-lg">
                     Book Now
                 </a>
             </div>
@@ -24,8 +24,8 @@
                     <ul class="mb-0 small">
                         <li>Total bookings today: {{ stats.today_total|default:0 }}</li>
                         <li>Pending approvals: {{ stats.pending|default:0 }}</li>
-                        <li>Approved this week: {{ stats.week_approved|default:0 }}</li>
-                        <li>Upcoming blocked dates: {{ stats.blocked|default:0 }}</li>
+                        <li>Approved this week: {{ stats.week_week_approved|default:0 }}</li>
+                        <!-- week_approved variable name might vary -->
                     </ul>
                 </div>
             </div>
@@ -36,38 +36,32 @@
 <section class="py-5">
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="section-title mb-0">Bookable Spaces</h2>
-            <a href="{% url 'space_list' %}"
-               class="small fw-semibold text-decoration-none">
+            <h2 class="section-title mb-0">Featured Halls</h2>
+            <a href="{% url 'hall_list' %}" class="small fw-semibold text-decoration-none">
                 View all &rsaquo;
             </a>
         </div>
 
         <div class="row g-4">
-            {% for space in spaces %}
+            {% for hall in halls %}
             <div class="col-md-4">
                 <div class="space-card p-3 h-100">
-                    <h5 class="fw-bold mb-1">{{ space.name }}</h5>
+                    <h5 class="fw-bold mb-1">{{ hall.name }}</h5>
                     <p class="text-muted small mb-2">
-                        {{ space.get_type_display }} • Capacity: {{ space.capacity }}
+                        Capacity: {{ hall.seating_capacity }}
                     </p>
                     <p class="small mb-3">
-                        {{ space.description|default:"Suitable for seminars, talks and meetings." }}
+                        {{ hall.description|truncatewords:20 }}
                     </p>
                     <div class="d-flex justify-content-between align-items-center">
-                        <a href="{% url 'space_availability' space.id %}"
-                           class="btn btn-sm btn-outline-secondary">
-                            View Availability
-                        </a>
-                        <a href="{% url 'book_space' %}?space_id={{ space.id }}"
-                           class="btn btn-sm btn-book">
-                            Book
+                        <a href="{% url 'hall_detail' hall.id %}" class="btn btn-sm btn-outline-secondary w-100">
+                            View Details & Book
                         </a>
                     </div>
                 </div>
             </div>
             {% empty %}
-            <p>No spaces configured yet.</p>
+            <p>No halls configured yet.</p>
             {% endfor %}
         </div>
     </div>

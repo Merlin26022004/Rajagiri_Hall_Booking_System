@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="section-title mb-0">Manage Blocked Dates</h2>
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Add Block Form -->
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 sticky-top" style="top: 2rem;">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Block a Date</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add">
+
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="date" class="form-control" required min="{{ today|date:'Y-m-d' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Hall</label>
+                            <select name="hall_id" class="form-select">
+                                <option value="">All Halls (Global Holiday)</option>
+                                {% for h in halls %}
+                                <option value="{{ h.id }}">{{ h.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Leave empty to block ALL halls.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Reason</label>
+                            <input type="text" name="reason" class="form-control"
+                                placeholder="Maintenance, Holiday, etc.">
+                        </div>
+
+                        <button type="submit" class="btn btn-danger w-100">Block Date</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- List of Blocked Dates -->
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Date</th>
+                                    <th>Hall</th>
+                                    <th>Reason</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for b in blocked_dates %}
+                                <tr>
+                                    <td class="ps-4">{{ b.date }}</td>
+                                    <td>
+                                        {% if b.hall %}
+                                        <strong>{{ b.hall.name }}</strong>
+                                        {% else %}
+                                        <span class="badge bg-dark">ALL HALLS</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ b.reason }}</td>
+                                    <td class="text-end pe-4">
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="block_id" value="{{ b.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                                onclick="return confirm('Unblock this date?');">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">No blocked dates found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

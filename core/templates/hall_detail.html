@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'hall_list' %}">Halls</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ hall.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Hall Details -->
+        <div class="col-lg-8">
+            <img src="{% static hall.image_path|default:'img/placeholder.jpg' %}" class="img-fluid rounded mb-4 w-100"
+                alt="{{ hall.name }}" style="height: 400px; object-fit: cover;"
+                onerror="this.src='https://placehold.co/800x400?text=No+Image'">
+
+            <div class="d-flex align-items-center mb-3">
+                <h1 class="mb-0 me-3">{{ hall.name }}</h1>
+                {% if hall.status == 'Available' %}
+                <span class="badge bg-success fs-6">Available</span>
+                {% elif hall.status == 'Maintenance' %}
+                <span class="badge bg-warning text-dark fs-6">Under Maintenance</span>
+                {% elif hall.status == 'Reserved' %}
+                <span class="badge bg-danger fs-6">Reserved (Priority)</span>
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                <h5><i class="bi bi-info-circle"></i> Description</h5>
+                <p>{{ hall.description }}</p>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5><i class="bi bi-people"></i> Seating Capacity</h5>
+                    <p>{{ hall.seating_capacity }} seats</p>
+                </div>
+                <div class="col-md-6">
+                    <h5><i class="bi bi-gear"></i> Facilities</h5>
+                    <p>{{ hall.facilities }}</p>
+                </div>
+            </div>
+
+            {% if hall.typical_use_cases %}
+            <div class="mb-4">
+                <h5><i class="bi bi-lightbulb"></i> Typical Use Cases</h5>
+                <p>{{ hall.typical_use_cases }}</p>
+            </div>
+            {% endif %}
+
+            {% if hall.booking_considerations %}
+            <div class="mb-4 text-warning bg-light p-3 rounded">
+                <h6 class="mb-2"><i class="bi bi-exclamation-triangle"></i> Booking Considerations</h6>
+                <p class="mb-0 small">{{ hall.booking_considerations }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Booking Sidebar -->
+        <div class="col-lg-4">
+            <div class="card shadow border-0 sticky-top" style="top: 2rem;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Request Booking</h5>
+                </div>
+                <div class="card-body">
+                    {% if user %}
+                    {% if hall.status != 'Available' %}
+                    <div class="alert alert-warning text-center">
+                        <strong>Booking Unavailable</strong><br>
+                        This hall is currently {{ hall.get_status_display.lower }}.
+                    </div>
+                    {% else %}
+                    <form action="{% url 'book_hall' hall.id %}" method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="date" class="form-control" required min="{{ today|date:'Y-m-d' }}">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Start Time</label>
+                                <input type="time" name="start_time" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">End Time</label>
+                                <input type="time" name="end_time" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Expected Count</label>
+                            <input type="number" name="expected_count" class="form-control" required
+                                max="{{ hall.seating_capacity }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Purpose</label>
+                            <textarea name="purpose" class="form-control" rows="3" required
+                                placeholder="Lecture, Event, etc."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Submit Request</button>
+                    </form>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-3">You must be logged in to book this hall.</p>
+                        <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary w-100">Login to
+                            Book</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,8 +4,8 @@
 <div class="container py-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="section-title mb-0">My Bookings</h2>
-        <a href="{% url 'book_space' %}" class="btn btn-book btn-sm">
-            + New Booking
+        <a href="{% url 'hall_list' %}" class="btn btn-book btn-sm">
+            + New Booking By Hall
         </a>
     </div>
 
@@ -26,7 +26,7 @@
                 <tr>
                     <th>Date</th>
                     <th>Time</th>
-                    <th>Space</th>
+                    <th>Hall</th>
                     <th>Purpose</th>
                     <th>Count</th>
                     <th>Status</th>
@@ -39,36 +39,53 @@
                     <td>{{ b.date }}</td>
                     <td>{{ b.start_time }} – {{ b.end_time }}</td>
                     <td>
-                        <strong>{{ b.space.name }}</strong>
-                        <div class="small text-muted">{{ b.space.get_type_display }}</div>
+                        <strong>{{ b.hall.name }}</strong>
                     </td>
                     <td class="small">{{ b.purpose }}</td>
                     <td>{{ b.expected_count }}</td>
                     <td>
                         {% if b.status == "Pending" %}
-                            <span class="badge bg-warning text-dark">Pending</span>
+                        <span class="badge bg-warning text-dark">Pending</span>
                         {% elif b.status == "Approved" %}
-                            <span class="badge bg-success">Approved</span>
+                        <span class="badge bg-success">Approved</span>
                         {% elif b.status == "Rejected" %}
-                            <span class="badge bg-danger">Rejected</span>
+                        <span class="badge bg-danger">Rejected</span>
                         {% elif b.status == "Cancelled" %}
-                            <span class="badge bg-secondary">Cancelled</span>
+                        <span class="badge bg-secondary">Cancelled</span>
                         {% else %}
-                            <span class="badge bg-light text-dark">{{ b.status }}</span>
+                        <span class="badge bg-light text-dark">{{ b.status }}</span>
                         {% endif %}
                     </td>
                     <td class="text-end">
                         {% if b.can_cancel %}
-                        <form method="post"
-                              action="{% url 'cancel_booking' b.id %}"
-                              class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit"
-                                    class="btn btn-sm btn-outline-danger"
-                                    onclick="return confirm('Cancel this booking?');">
-                                Cancel
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
+                            data-bs-target="#cancelModal{{ b.id }}">
+                            Cancel
+                        </button>
+
+                        <div class="modal fade" id="cancelModal{{ b.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <form method="post" action="{% url 'cancel_booking' b.id %}" class="modal-content">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Cancel Booking</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-start">
+                                        <p>Are you sure you want to cancel?</p>
+                                        <div class="mb-3">
+                                            <label class="form-label">Reason (Required)</label>
+                                            <textarea name="reason" class="form-control" rows="2" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-danger">Confirm Cancellation</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                         {% else %}
                         <span class="text-muted small">No actions</span>
                         {% endif %}
@@ -81,8 +98,8 @@
     {% else %}
     <div class="text-center py-5 text-muted">
         <p class="mb-2">You don’t have any bookings yet.</p>
-        <a href="{% url 'book_space' %}" class="btn btn-book btn-sm">
-            Make your first booking
+        <a href="{% url 'hall_list' %}" class="btn btn-book btn-sm">
+            Browse halls to book
         </a>
     </div>
     {% endif %}

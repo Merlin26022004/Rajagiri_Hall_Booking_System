@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">Our Halls & Venues</h1>
+
+    <div class="row g-4">
+        {% for hall in halls %}
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <img src="{% static hall.image_path|default:'img/placeholder.jpg' %}" class="card-img-top"
+                    alt="{{ hall.name }}" style="height: 200px; object-fit: cover;"
+                    onerror="this.src='https://placehold.co/600x400?text=No+Image'">
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title fw-bold mb-0">{{ hall.name }}</h5>
+                        {% if hall.status == 'Available' %}
+                        <span class="badge bg-success">Available</span>
+                        {% elif hall.status == 'Maintenance' %}
+                        <span class="badge bg-warning text-dark">Maintenance</span>
+                        {% elif hall.status == 'Reserved' %}
+                        <span class="badge bg-danger">Reserved</span>
+                        {% endif %}
+                    </div>
+                    <p class="card-text text-muted small mb-2">
+                        <i class="bi bi-people-fill"></i> Capacity: {{ hall.seating_capacity }}
+                    </p>
+                    <p class="card-text">{{ hall.description|truncatewords:20 }}</p>
+                    <a href="{% url 'hall_detail' hall.id %}" class="btn btn-outline-primary w-100 mt-2">View
+                        Details</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center text-muted">
+            <p>No halls found.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

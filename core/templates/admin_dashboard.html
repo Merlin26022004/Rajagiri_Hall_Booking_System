@@ -5,11 +5,18 @@
 
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
         <h2 class="section-title mb-3 mb-md-0">Admin Dashboard</h2>
-        <div class="d-flex flex-wrap gap-2">
-            <!-- These can later link to management pages -->
-            <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary btn-sm">
-                Django Admin
+        <div class="d-flex gap-2">
+            <a href="{% url 'manage_blocked_dates' %}" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-calendar-x"></i> Block Dates
             </a>
+            {% if user.role == "SUPER_ADMIN" %}
+            <a href="{% url 'manage_users' %}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-people"></i> Manage Users
+            </a>
+            <a href="{% url 'view_audit_log' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-list-ul"></i> Audit Log
+            </a>
+            {% endif %}
         </div>
     </div>
 
@@ -48,21 +55,23 @@
                 <label class="form-label small">Status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All</option>
-                    <option value="Pending"  {% if request.GET.status == "Pending" %}selected{% endif %}>Pending</option>
-                    <option value="Approved" {% if request.GET.status == "Approved" %}selected{% endif %}>Approved</option>
-                    <option value="Rejected" {% if request.GET.status == "Rejected" %}selected{% endif %}>Rejected</option>
-                    <option value="Cancelled" {% if request.GET.status == "Cancelled" %}selected{% endif %}>Cancelled</option>
+                    <option value="Pending" {% if request.GET.status=="Pending" %}selected{% endif %}>Pending</option>
+                    <option value="Approved" {% if request.GET.status=="Approved" %}selected{% endif %}>Approved
+                    </option>
+                    <option value="Rejected" {% if request.GET.status=="Rejected" %}selected{% endif %}>Rejected
+                    </option>
+                    <option value="Cancelled" {% if request.GET.status=="Cancelled" %}selected{% endif %}>Cancelled
+                    </option>
                 </select>
             </div>
 
             <div class="col-md-3">
-                <label class="form-label small">Space</label>
-                <select name="space_id" class="form-select form-select-sm">
-                    <option value="">All spaces</option>
-                    {% for s in all_spaces %}
-                    <option value="{{ s.id }}"
-                        {% if request.GET.space_id == s.id|stringformat:"s" %}selected{% endif %}>
-                        {{ s.name }}
+                <label class="form-label small">Hall</label>
+                <select name="hall_id" class="form-select form-select-sm">
+                    <option value="">All halls</option>
+                    {% for h in all_halls %}
+                    <option value="{{ h.id }}" {% if request.GET.hall_id==h.id|stringformat:"s" %}selected{% endif %}>
+                        {{ h.name }}
                     </option>
                     {% endfor %}
                 </select>
@@ -70,15 +79,12 @@
 
             <div class="col-md-3">
                 <label class="form-label small">Date</label>
-                <input type="date" name="date"
-                       class="form-control form-control-sm"
-                       value="{{ request.GET.date }}">
+                <input type="date" name="date" class="form-control form-control-sm" value="{{ request.GET.date }}">
             </div>
 
             <div class="col-md-3 text-md-end">
                 <button type="submit" class="btn btn-book btn-sm">Apply Filters</button>
-                <a href="{% url 'admin_dashboard' %}"
-                   class="btn btn-outline-secondary btn-sm">Reset</a>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
             </div>
         </div>
     </form>
@@ -90,7 +96,7 @@
                 <tr>
                     <th>Date</th>
                     <th>Time</th>
-                    <th>Space</th>
+                    <th>Hall</th>
                     <th>Requested By</th>
                     <th>Purpose</th>
                     <th>Status</th>
@@ -104,65 +110,120 @@
                     <td>{{ b.date }}</td>
                     <td>{{ b.start_time }} – {{ b.end_time }}</td>
                     <td>
-                        <strong>{{ b.space.name }}</strong>
-                        <div class="small text-muted">{{ b.space.get_type_display }}</div>
+                        <strong>{{ b.hall.name }}</strong>
                     </td>
                     <td>
-                        {{ b.requested_by.username }}
+                        {{ b.requested_by.full_name }}
+                        <div class="small text-muted">{{ b.requested_by.role }}</div>
                     </td>
                     <td class="small">{{ b.purpose }}</td>
                     <td>
                         {% if b.status == "Pending" %}
-                            <span class="badge bg-warning text-dark">Pending</span>
+                        <span class="badge bg-warning text-dark">Pending</span>
                         {% elif b.status == "Approved" %}
-                            <span class="badge bg-success">Approved</span>
+                        <span class="badge bg-success">Approved</span>
                         {% elif b.status == "Rejected" %}
-                            <span class="badge bg-danger">Rejected</span>
+                        <span class="badge bg-danger">Rejected</span>
                         {% elif b.status == "Cancelled" %}
-                            <span class="badge bg-secondary">Cancelled</span>
+                        <span class="badge bg-secondary">Cancelled</span>
                         {% else %}
-                            <span class="badge bg-light text-dark">{{ b.status }}</span>
+                        <span class="badge bg-light text-dark">{{ b.status }}</span>
                         {% endif %}
                     </td>
                     <td class="small">
                         {% if b.approved_by %}
-                            {{ b.approved_by.username }}
+                        {{ b.approved_by.full_name }}
                         {% else %}
-                            <span class="text-muted">—</span>
+                        <span class="text-muted">—</span>
                         {% endif %}
                     </td>
                     <td class="text-end">
-                        {% if b.status == "Pending" %}
-                            <form method="post"
-                                  action="{% url 'approve_booking' b.id %}"
-                                  class="d-inline">
+                        <div class="btn-group" role="group">
+                            {% if b.status == "Pending" %}
+                            <form method="post" action="{% url 'approve_booking' b.id %}" class="d-inline">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-success">
-                                    Approve
+                                <button type="submit" class="btn btn-sm btn-success" title="Approve"
+                                    onclick="return confirm('Approve this booking?');">
+                                    <i class="bi bi-check-lg"></i>
                                 </button>
                             </form>
-                            <form method="post"
-                                  action="{% url 'reject_booking' b.id %}"
-                                  class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    Reject
-                                </button>
-                            </form>
-                        {% elif b.status in "Approved,Pending" %}
-                            <form method="post"
-                                  action="{% url 'admin_cancel_booking' b.id %}"
-                                  class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        onclick="return confirm('Cancel this booking?');">
-                                    Cancel
-                                </button>
-                            </form>
-                        {% else %}
-                            <span class="text-muted small">No actions</span>
-                        {% endif %}
+
+                            <button type="button" class="btn btn-sm btn-danger ms-1" data-bs-toggle="modal"
+                                data-bs-target="#rejectModal{{ b.id }}" title="Reject">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                            {% endif %}
+
+                            {% if b.status == "Pending" or b.status == "Approved" %}
+                            <button type="button" class="btn btn-sm btn-warning ms-1" data-bs-toggle="modal"
+                                data-bs-target="#rescheduleModal{{ b.id }}" title="Reschedule">
+                                <i class="bi bi-calendar-event"></i>
+                            </button>
+                            {% endif %}
+
+                            <!-- Reject Modal -->
+                            <div class="modal fade" id="rejectModal{{ b.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <form method="post" action="{% url 'reject_booking' b.id %}" class="modal-content">
+                                        {% csrf_token %}
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Reject Booking</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="mb-3">
+                                                <label class="form-label">Reason (Required)</label>
+                                                <textarea name="reason" class="form-control" rows="2"
+                                                    required></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Close</button>
+                                            <button type="submit" class="btn btn-danger">Confirm Rejection</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Reschedule Modal -->
+                            <div class="modal fade" id="rescheduleModal{{ b.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <form method="post" action="{% url 'reschedule_booking' b.id %}"
+                                        class="modal-content">
+                                        {% csrf_token %}
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Reschedule Booking</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="mb-3">
+                                                <label class="form-label">New Date</label>
+                                                <input type="date" name="date" class="form-control"
+                                                    value="{{ b.date|date:'Y-m-d' }}" required>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-6 mb-3">
+                                                    <label class="form-label">Start Time</label>
+                                                    <input type="time" name="start_time" class="form-control"
+                                                        value="{{ b.start_time|time:'H:i' }}" required>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <label class="form-label">End Time</label>
+                                                    <input type="time" name="end_time" class="form-control"
+                                                        value="{{ b.end_time|time:'H:i' }}" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Close</button>
+                                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -172,7 +233,7 @@
     {% else %}
     <div class="text-center py-5 text-muted">
         <p class="mb-1">No bookings match the current filters.</p>
-        <p class="mb-0 small">Try changing the status, space or date.</p>
+        <p class="mb-0 small">Try changing the status, hall or date.</p>
     </div>
     {% endif %}
 </div>

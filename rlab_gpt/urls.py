@@ -1,42 +1,18 @@
-from django.contrib import admin
 from django.urls import path
 from core import views
 
 urlpatterns = [
-    # 🔹 Custom Admin Dashboard (must come BEFORE admin.site.urls)
-    path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
-    path(
-        "admin/dashboard/bookings/<int:booking_id>/approve/",
-        views.approve_booking,
-        name="approve_booking",
-    ),
-    path("api/space-day-slots/", views.space_day_slots),
+    # Auth
+    path("admin/login/", views.login_view, name="login"),
+    path("logout/", views.logout_view, name="logout"),
 
-    path(
-        "admin/dashboard/bookings/<int:booking_id>/reject/",
-        views.reject_booking,
-        name="reject_booking",
-    ),
-    path(
-        "admin/dashboard/bookings/<int:booking_id>/cancel/",
-        views.admin_cancel_booking,
-        name="admin_cancel_booking",
-    ),
-
-    # Django's own admin site (keep this AFTER the custom /admin/dashboard/ paths)
-    path("admin/", admin.site.urls),
-
-    # Public pages
+    # Hall Pages
     path("", views.home, name="home"),
-    path("spaces/", views.space_list, name="space_list"),
-    path(
-        "spaces/<int:space_id>/availability/",
-        views.space_availability,
-        name="space_availability",
-    ),
+    path("halls/", views.hall_list, name="hall_list"),
+    path("halls/<int:hall_id>/", views.hall_detail, name="hall_detail"),
 
     # Booking flow
-    path("book/", views.book_space, name="book_space"),
+    path("halls/<int:hall_id>/book/", views.book_hall, name="book_hall"),
     path("my-bookings/", views.my_bookings, name="my_bookings"),
     path(
         "my-bookings/<int:booking_id>/cancel/",
@@ -44,8 +20,27 @@ urlpatterns = [
         name="cancel_booking",
     ),
 
-    # Logout
-    path("logout/", views.logout_view, name="logout"),
+    # Admin Dashboard
+    path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path(
+        "admin/dashboard/bookings/<int:booking_id>/approve/",
+        views.approve_booking,
+        name="approve_booking",
+    ),
+    path(
+        "admin/dashboard/bookings/<int:booking_id>/reject/",
+        views.reject_booking,
+        name="reject_booking",
+    ),
+    path(
+        "admin/dashboard/bookings/<int:booking_id>/reschedule/",
+        views.reschedule_booking,
+        name="reschedule_booking",
+    ),
+    path("admin/users/", views.manage_users, name="manage_users"),
+    path("admin/users/<int:user_id>/toggle/", views.toggle_user_status, name="toggle_user_status"),
+    path("admin/audit-log/", views.view_audit_log, name="view_audit_log"),
+    path("admin/blocked-dates/", views.manage_blocked_dates, name="manage_blocked_dates"),
 
     # API
     path(
