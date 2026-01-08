@@ -49,6 +49,10 @@
                 </li>
 
                 <li class="nav-item">
+                    <a class="nav-link" href="{% url 'calendar' %}">Calendar</a>
+                </li>
+
+                <li class="nav-item">
                     <a class="nav-link {% if request.path|slice:':13' == '/my-bookings/' %}active{% endif %}" href="{% url 'my_bookings' %}">
                         My Bookings
                     </a>

@@ -57,4 +57,6 @@ urlpatterns = [
         views.api_unavailable_dates,
         name="api_unavailable_dates",
     ),
+    path('calendar/', views.calendar_view, name='calendar'),
+    path('api/bookings/', views.api_bookings, name='api_bookings'),
 ]

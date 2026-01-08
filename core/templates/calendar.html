@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0 text-dark">Availability Calendar</h2>
+            <p class="text-muted small">Real-time schedule of all venues.</p>
+        </div>
+        <a href="{% url 'book_space' %}" class="btn btn-dark shadow-sm rounded-pill px-4 fw-bold">
+            <i class="bi bi-plus-lg me-2"></i>Book a Slot
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-body p-0 bg-white">
+            <div id='calendar'></div>
+        </div>
+    </div>
+</div>
+
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+
+<style>
+    /* --- Clean Calendar Styling --- */
+    
+    /* Remove default blue underlines */
+    a { text-decoration: none !important; }
+
+    /* Header styling */
+    .fc-header-toolbar {
+        padding: 20px;
+        margin-bottom: 0 !important;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 700;
+        color: #333;
+    }
+
+    /* Buttons (Today, Month, Week) */
+    .fc-button {
+        background-color: white !important;
+        border: 1px solid #e0e0e0 !important;
+        color: #555 !important;
+        font-weight: 600 !important;
+        box-shadow: none !important;
+        text-transform: capitalize !important;
+        border-radius: 8px !important;
+        padding: 6px 16px !important;
+    }
+    
+    .fc-button:hover {
+        background-color: #f8f9fa !important;
+        color: #000 !important;
+    }
+    
+    .fc-button-active {
+        background-color: #f1f3f4 !important; /* Light grey active state */
+        color: #1967d2 !important;
+        border-color: #e0e0e0 !important;
+    }
+
+    /* Grid & Cells */
+    .fc-scrollgrid { border: none !important; }
+    .fc-col-header-cell { padding: 15px 0; background: #fafafa; border-bottom: 1px solid #eee; }
+    .fc-col-header-cell-cushion { color: #666; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; }
+    
+    .fc-daygrid-day { border-color: #f0f0f0; }
+
+    /* Day Number Styling */
+    .fc-daygrid-day-top { padding: 8px; justify-content: center; }
+    .fc-daygrid-day-number {
+        font-size: 0.9rem;
+        color: #444;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        text-decoration: none !important; /* Force no underline */
+    }
+    
+    /* Highlight Today */
+    .fc-day-today { background-color: transparent !important; }
+    .fc-day-today .fc-daygrid-day-number {
+        background-color: #1a73e8; /* Google Blue */
+        color: white !important;
+        font-weight: bold;
+    }
+
+    /* --- Event Styling (The Booked Slots) --- */
+    .fc-event {
+        border: none !important;
+        border-radius: 4px;
+        padding: 4px 8px;
+        margin-bottom: 2px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: default;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        /* Default color fallback */
+        background-color: #e8f0fe;
+        color: #1967d2;
+        border-left: 3px solid #1967d2 !important;
+    }
+    
+    /* You can override colors dynamically in JS, but this sets a nice base */
+    .fc-event-title { font-weight: 600; }
+    .fc-event-time { font-weight: normal; margin-right: 5px; opacity: 0.8; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            themeSystem: 'standard',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek'
+            },
+            height: 700,
+            events: '/api/bookings/',
+            
+            eventContent: function(arg) {
+                // Custom render to ensure it looks clean
+                let timeText = arg.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                return {
+                    html: `<div class="d-flex overflow-hidden">
+                             <span class="me-1 opacity-75">${timeText}</span>
+                             <span class="fw-bold text-truncate">${arg.event.title}</span>
+                           </div>`
+                };
+            }
+        });
+        calendar.render();
+    });
+</script>
+{% endblock %}

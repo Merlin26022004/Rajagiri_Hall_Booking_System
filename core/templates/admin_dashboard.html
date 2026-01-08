@@ -3,177 +3,292 @@
 {% block content %}
 <div class="container py-5">
 
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
-        <h2 class="section-title mb-3 mb-md-0">Admin Dashboard</h2>
-        <div class="d-flex flex-wrap gap-2">
-            <!-- These can later link to management pages -->
-            <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary btn-sm">
-                Django Admin
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5">
+        <div>
+            <h2 class="fw-bold mb-1 text-dark" style="letter-spacing: -0.5px;">Admin Dashboard</h2>
+            <p class="text-muted small mb-0">Overview of campus facility usage and approvals.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'admin:index' %}" class="btn btn-dark btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                <i class="bi bi-shield-lock-fill me-2"></i>Django Admin
             </a>
         </div>
     </div>
 
-    <!-- Stats row -->
-    <div class="row g-3 mb-4">
+    <div class="row g-4 mb-5">
         <div class="col-md-3">
-            <div class="space-card p-3 h-100">
-                <div class="small text-muted mb-1">Today’s Bookings</div>
-                <div class="h4 mb-0">{{ stats.today_total|default:0 }}</div>
+            <div class="card border-0 shadow-sm h-100 py-2" style="border-radius: 16px;">
+                <div class="card-body">
+                    <div class="text-uppercase small fw-bold text-muted mb-1" style="font-size: 0.75rem;">Today's Activity</div>
+                    <div class="d-flex align-items-center">
+                        <div class="h2 fw-bold text-dark mb-0 me-3">{{ stats.today_total|default:0 }}</div>
+                        <span class="badge bg-light text-dark rounded-pill">Bookings</span>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="space-card p-3 h-100">
-                <div class="small text-muted mb-1">Pending Approvals</div>
-                <div class="h4 mb-0 text-warning">{{ stats.pending|default:0 }}</div>
+            <div class="card border-0 shadow-sm h-100 py-2 position-relative overflow-hidden" style="border-radius: 16px;">
+                <div class="position-absolute top-0 start-0 h-100 bg-warning" style="width: 4px;"></div>
+                <div class="card-body ps-4">
+                    <div class="text-uppercase small fw-bold text-warning mb-1" style="font-size: 0.75rem;">Needs Attention</div>
+                    <div class="h2 fw-bold text-dark mb-0">{{ stats.pending|default:0 }}</div>
+                    <div class="small text-muted mt-1">Pending Requests</div>
+                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="space-card p-3 h-100">
-                <div class="small text-muted mb-1">Approved (This Week)</div>
-                <div class="h4 mb-0 text-success">{{ stats.week_approved|default:0 }}</div>
+            <div class="card border-0 shadow-sm h-100 py-2 position-relative overflow-hidden" style="border-radius: 16px;">
+                <div class="position-absolute top-0 start-0 h-100 bg-success" style="width: 4px;"></div>
+                <div class="card-body ps-4">
+                    <div class="text-uppercase small fw-bold text-success mb-1" style="font-size: 0.75rem;">Approved (Week)</div>
+                    <div class="h2 fw-bold text-dark mb-0">{{ stats.week_approved|default:0 }}</div>
+                    <div class="small text-muted mt-1">Confirmed Slots</div>
+                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="space-card p-3 h-100">
-                <div class="small text-muted mb-1">Blocked Dates</div>
-                <div class="h4 mb-0 text-danger">{{ stats.blocked|default:0 }}</div>
+            <div class="card border-0 shadow-sm h-100 py-2 position-relative overflow-hidden" style="border-radius: 16px;">
+                <div class="position-absolute top-0 start-0 h-100 bg-danger" style="width: 4px;"></div>
+                <div class="card-body ps-4">
+                    <div class="text-uppercase small fw-bold text-danger mb-1" style="font-size: 0.75rem;">Unavailable</div>
+                    <div class="h2 fw-bold text-dark mb-0">{{ stats.blocked|default:0 }}</div>
+                    <div class="small text-muted mt-1">Blocked Days</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <form method="get" class="space-card p-3 mb-4">
-        <div class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small">Status</label>
-                <select name="status" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="Pending"  {% if request.GET.status == "Pending" %}selected{% endif %}>Pending</option>
-                    <option value="Approved" {% if request.GET.status == "Approved" %}selected{% endif %}>Approved</option>
-                    <option value="Rejected" {% if request.GET.status == "Rejected" %}selected{% endif %}>Rejected</option>
-                    <option value="Cancelled" {% if request.GET.status == "Cancelled" %}selected{% endif %}>Cancelled</option>
-                </select>
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label small">Space</label>
-                <select name="space_id" class="form-select form-select-sm">
-                    <option value="">All spaces</option>
-                    {% for s in all_spaces %}
-                    <option value="{{ s.id }}"
-                        {% if request.GET.space_id == s.id|stringformat:"s" %}selected{% endif %}>
-                        {{ s.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label small">Date</label>
-                <input type="date" name="date"
-                       class="form-control form-control-sm"
-                       value="{{ request.GET.date }}">
-            </div>
-
-            <div class="col-md-3 text-md-end">
-                <button type="submit" class="btn btn-book btn-sm">Apply Filters</button>
-                <a href="{% url 'admin_dashboard' %}"
-                   class="btn btn-outline-secondary btn-sm">Reset</a>
+    <div class="row g-4 mb-5">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg h-100" style="border-radius: 20px;">
+                <div class="card-header bg-white border-0 py-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark">Space Popularity</h5>
+                    <span class="badge bg-light text-primary rounded-pill px-3 py-2">Analytics</span>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div style="height: 320px; width: 100%;">
+                        <canvas id="popularityChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
-    </form>
+
+        <div class="col-lg-4">
+            <form method="get" class="card border-0 shadow-sm h-100" style="border-radius: 20px;">
+                <div class="card-header bg-white border-0 py-4 px-4">
+                    <h5 class="fw-bold mb-0 text-dark">Filter Bookings</h5>
+                </div>
+                <div class="card-body px-4 d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label small fw-bold text-muted text-uppercase">Booking Status</label>
+                        <select name="status" class="form-select border-light bg-light py-2">
+                            <option value="">Show All</option>
+                            <option value="Pending"  {% if request.GET.status == "Pending" %}selected{% endif %}>🟡 Pending Review</option>
+                            <option value="Approved" {% if request.GET.status == "Approved" %}selected{% endif %}>🟢 Approved</option>
+                            <option value="Rejected" {% if request.GET.status == "Rejected" %}selected{% endif %}>🔴 Rejected</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label small fw-bold text-muted text-uppercase">Venue</label>
+                        <select name="space_id" class="form-select border-light bg-light py-2">
+                            <option value="">All Venues</option>
+                            {% for s in all_spaces %}
+                            <option value="{{ s.id }}" {% if request.GET.space_id == s.id|stringformat:"s" %}selected{% endif %}>
+                                {{ s.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label small fw-bold text-muted text-uppercase">Specific Date</label>
+                        <input type="date" name="date" class="form-control border-light bg-light py-2" value="{{ request.GET.date }}">
+                    </div>
+
+                    <div class="mt-auto pt-3 d-grid gap-2">
+                        <button type="submit" class="btn btn-primary fw-bold py-2 rounded-pill shadow-sm">
+                            Apply Filters
+                        </button>
+                        <a href="{% url 'admin_dashboard' %}" class="btn btn-light text-muted fw-bold py-2 rounded-pill">
+                            Clear All
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
     {% if bookings %}
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Space</th>
-                    <th>Requested By</th>
-                    <th>Purpose</th>
-                    <th>Status</th>
-                    <th>Approved By</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for b in bookings %}
-                <tr>
-                    <td>{{ b.date }}</td>
-                    <td>{{ b.start_time }} – {{ b.end_time }}</td>
-                    <td>
-                        <strong>{{ b.space.name }}</strong>
-                        <div class="small text-muted">{{ b.space.get_type_display }}</div>
-                    </td>
-                    <td>
-                        {{ b.requested_by.username }}
-                    </td>
-                    <td class="small">{{ b.purpose }}</td>
-                    <td>
-                        {% if b.status == "Pending" %}
-                            <span class="badge bg-warning text-dark">Pending</span>
-                        {% elif b.status == "Approved" %}
-                            <span class="badge bg-success">Approved</span>
-                        {% elif b.status == "Rejected" %}
-                            <span class="badge bg-danger">Rejected</span>
-                        {% elif b.status == "Cancelled" %}
-                            <span class="badge bg-secondary">Cancelled</span>
-                        {% else %}
-                            <span class="badge bg-light text-dark">{{ b.status }}</span>
-                        {% endif %}
-                    </td>
-                    <td class="small">
-                        {% if b.approved_by %}
-                            {{ b.approved_by.username }}
-                        {% else %}
-                            <span class="text-muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end">
-                        {% if b.status == "Pending" %}
-                            <form method="post"
-                                  action="{% url 'approve_booking' b.id %}"
-                                  class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-success">
-                                    Approve
-                                </button>
-                            </form>
-                            <form method="post"
-                                  action="{% url 'reject_booking' b.id %}"
-                                  class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    Reject
-                                </button>
-                            </form>
-                        {% elif b.status in "Approved,Pending" %}
-                            <form method="post"
-                                  action="{% url 'admin_cancel_booking' b.id %}"
-                                  class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        onclick="return confirm('Cancel this booking?');">
-                                    Cancel
-                                </button>
-                            </form>
-                        {% else %}
-                            <span class="text-muted small">No actions</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 20px;">
+        <div class="card-header bg-white border-0 py-4 px-4">
+            <h5 class="fw-bold mb-0">Recent Activity</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-hover">
+                <thead class="bg-light text-muted small text-uppercase fw-bold">
+                    <tr>
+                        <th class="ps-4 py-3 border-0">When</th>
+                        <th class="py-3 border-0">Where & Why</th>
+                        <th class="py-3 border-0">User</th>
+                        <th class="py-3 border-0">Status</th>
+                        <th class="text-end pe-4 py-3 border-0">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="border-top-0">
+                    {% for b in bookings %}
+                    <tr>
+                        <td class="ps-4 py-3">
+                            <div class="fw-bold text-dark">{{ b.date|date:"M d" }}</div>
+                            <div class="small text-muted">{{ b.start_time|time:"H:i" }} - {{ b.end_time|time:"H:i" }}</div>
+                        </td>
+                        <td class="py-3">
+                            <div class="fw-bold text-dark">{{ b.space.name }}</div>
+                            <div class="small text-muted text-truncate" style="max-width: 200px;">{{ b.purpose }}</div>
+                        </td>
+                        <td class="py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2 text-primary fw-bold" style="width: 35px; height: 35px; font-size: 0.8rem;">
+                                    {{ b.requested_by.username|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <div class="small fw-bold">{{ b.requested_by.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3">
+                            {% if b.status == "Pending" %}
+                                <span class="badge bg-warning text-dark bg-opacity-25 border border-warning rounded-pill px-3 py-2">Pending</span>
+                            {% elif b.status == "Approved" %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2">Approved</span>
+                            {% elif b.status == "Rejected" %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill px-3 py-2">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill px-3 py-2">{{ b.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4 py-3">
+                            {% if b.status == "Pending" %}
+                                <form method="post" action="{% url 'approve_booking' b.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm me-1">
+                                        Approve
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'reject_booking' b.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold">
+                                        Reject
+                                    </button>
+                                </form>
+                            {% elif b.status == "Approved" %}
+                                <form method="post" action="{% url 'admin_cancel_booking' b.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-light text-muted rounded-pill px-3" onclick="return confirm('Cancel this approved booking?');">
+                                        Cancel
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
     {% else %}
-    <div class="text-center py-5 text-muted">
-        <p class="mb-1">No bookings match the current filters.</p>
-        <p class="mb-0 small">Try changing the status, space or date.</p>
+    <div class="text-center py-5">
+        <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+            <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+        </div>
+        <h5 class="text-muted">All caught up!</h5>
+        <p class="small text-muted">No bookings match your current filters.</p>
     </div>
     {% endif %}
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Data Setup
+        const labels = JSON.parse('{{ space_names_json|safe }}');
+        const rawData = JSON.parse('{{ booking_counts_json|safe }}');
+
+        // 2. Chart Context
+        const ctx = document.getElementById('popularityChart').getContext('2d');
+
+        // 3. Create a Beautiful Gradient (Deep Blue -> Cyan)
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, '#4e73df'); // Top color
+        gradient.addColorStop(1, '#36b9cc'); // Bottom color
+
+        // 4. Render Chart
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Approved Bookings',
+                    data: rawData,
+                    backgroundColor: gradient,
+                    borderRadius: 8, // Soft rounded top corners
+                    barThickness: 35, // Premium feel width
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }, // Hide ugly legend
+                    tooltip: {
+                        // "Glassmorphism" Tooltip Style
+                        backgroundColor: '#ffffff',
+                        titleColor: '#2c3e50',
+                        bodyColor: '#6c757d',
+                        borderColor: '#e3e6f0',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: false, // Hide the little color box
+                        callbacks: {
+                            label: function(context) {
+                                return context.raw + ' Bookings';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f8f9fc', // Very faint horizontal lines
+                            borderDash: [5, 5], // Dashed style
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            font: { family: "'Segoe UI', sans-serif", size: 11 },
+                            color: '#858796'
+                        },
+                        border: { display: false } // Remove axis line
+                    },
+                    x: {
+                        grid: { display: false }, // No vertical grid lines
+                        ticks: {
+                            font: { family: "'Segoe UI', sans-serif", size: 12, weight: 'bold' },
+                            color: '#5a5c69'
+                        },
+                        border: { display: false }
+                    }
+                },
+                animation: {
+                    duration: 2000,
+                    easing: 'easeOutQuart' // Smooth "pop" effect on load
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

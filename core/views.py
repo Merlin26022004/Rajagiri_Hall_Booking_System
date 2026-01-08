@@ -1,3 +1,4 @@
+import json  
 from datetime import timedelta
 
 from django.contrib import messages
@@ -275,6 +276,17 @@ def admin_dashboard(request):
 
     all_spaces = Space.objects.all()
 
+    # --- NEW: Chart Data Calculation ---
+    # Prepare data for "Most Booked Spaces" chart
+    chart_spaces = Space.objects.all()
+    space_names = [s.name for s in chart_spaces]
+    booking_counts = []
+    
+    for s in chart_spaces:
+        # Count only APPROVED bookings for accurate popularity stats
+        count = Booking.objects.filter(space=s, status=Booking.STATUS_APPROVED).count()
+        booking_counts.append(count)
+
     return render(
         request,
         "admin_dashboard.html",
@@ -282,6 +294,9 @@ def admin_dashboard(request):
             "bookings": bookings,
             "stats": stats,
             "all_spaces": all_spaces,
+            # Send JSON strings for Chart.js
+            "space_names_json": json.dumps(space_names),
+            "booking_counts_json": json.dumps(booking_counts),
         },
     )
 
@@ -348,10 +363,6 @@ def admin_cancel_booking(request, booking_id):
 def api_unavailable_dates(request):
     """
     Return dates that are fully blocked for a space.
-
-    NOTE: We are NOT blocking all dates that have ANY booking.
-    That would prevent multiple non-overlapping bookings on same day.
-    This API only returns BlockedDate entries (hard blocked days).
     """
     space_id = request.GET.get("space_id")
     if not space_id:
@@ -374,7 +385,6 @@ def api_unavailable_dates(request):
 def space_day_slots(request):
     """
     Return time slots already booked for a given space on a given date.
-    Used by booking_form.js to display existing bookings for that day.
     """
     space_id = request.GET.get("space_id")
     date = request.GET.get("date")
@@ -392,6 +402,38 @@ def space_day_slots(request):
         for b in bookings
     ]
     return JsonResponse(data, safe=False)
+
+
+# ============================================================
+# NEW: Calendar & Visualization Features
+# ============================================================
+
+def calendar_view(request):
+    """Render the full-page availability calendar."""
+    return render(request, "calendar.html")
+
+def api_bookings(request):
+    """
+    Return JSON events for FullCalendar.
+    Only returns APPROVED bookings to show confirmed busy slots.
+    """
+    # Fetch approved bookings
+    bookings = Booking.objects.filter(status=Booking.STATUS_APPROVED)
+    
+    events = []
+    for b in bookings:
+        # FullCalendar expects 'start' and 'end' in ISO format (YYYY-MM-DDTHH:MM:SS)
+        start_dt = f"{b.date.isoformat()}T{b.start_time.strftime('%H:%M:%S')}"
+        end_dt = f"{b.date.isoformat()}T{b.end_time.strftime('%H:%M:%S')}"
+        
+        events.append({
+            'title': f"{b.space.name} (Booked)",
+            'start': start_dt,
+            'end': end_dt,
+            'color': '#dc3545', # Bootstrap 'danger' red
+        })
+    
+    return JsonResponse(events, safe=False)
 
 
 # ============================================================
