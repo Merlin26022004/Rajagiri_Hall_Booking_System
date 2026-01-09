@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold">Notification History</h2>
+                <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">Back to Home</a>
+            </div>
+
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="list-group list-group-flush rounded-4">
+                    {% for n in notifications %}
+                    <div class="list-group-item p-4 {% if not n.is_read %}bg-light{% endif %}">
+                        <div class="d-flex w-100 justify-content-between mb-1">
+                            <h6 class="mb-1 fw-bold {% if not n.is_read %}text-primary{% endif %}">
+                                {% if not n.is_read %}<i class="bi bi-circle-fill small me-2"></i>{% endif %}
+                                System Alert
+                            </h6>
+                            <small class="text-muted">{{ n.created_at|date:"M d, Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ n.message }}</p>
+                        {% if not n.is_read %}
+                        <a href="{% url 'mark_notification_read' n.id %}" class="btn btn-sm btn-link p-0 text-decoration-none mt-2">Mark as read</a>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="p-5 text-center text-muted">
+                        <i class="bi bi-bell-slash display-4 mb-3 d-block"></i>
+                        No notifications found.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

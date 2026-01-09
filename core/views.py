@@ -27,44 +27,25 @@ def home(request):
     spaces = Space.objects.all()[:6]
     today = timezone.localdate()
     
-    # Default stats (for anonymous users)
+    # Default stats
     today_total = 0
     pending = 0
     week_approved = 0
-    
-    # Blocked dates are public information (everyone sees the same count)
     blocked = BlockedDate.objects.filter(date__gte=today).count()
 
     if request.user.is_authenticated:
         if request.user.is_staff:
             # === ADMIN VIEW: GLOBAL ACTIVITY ===
-            # Admins see how busy the WHOLE system is
             today_total = Booking.objects.filter(date=today).count()
-            
-            # Critical: Admins see ALL pending requests they need to approve
             pending = Booking.objects.filter(status=Booking.STATUS_PENDING).count()
-            
-            # Admins see total approved events happening this week
             week_approved = Booking.objects.filter(
                 status=Booking.STATUS_APPROVED,
                 date__range=[today, today + timedelta(days=6)]
             ).count()
-            
         else:
             # === STUDENT VIEW: PERSONAL ACTIVITY ===
-            # Students only see THEIR OWN bookings
-            today_total = Booking.objects.filter(
-                requested_by=request.user, 
-                date=today
-            ).count()
-            
-            # Critical: Students only see THEIR pending requests
-            pending = Booking.objects.filter(
-                requested_by=request.user, 
-                status=Booking.STATUS_PENDING
-            ).count()
-            
-            # Students see their own upcoming approved bookings
+            today_total = Booking.objects.filter(requested_by=request.user, date=today).count()
+            pending = Booking.objects.filter(requested_by=request.user, status=Booking.STATUS_PENDING).count()
             week_approved = Booking.objects.filter(
                 requested_by=request.user,
                 status=Booking.STATUS_APPROVED,
@@ -78,14 +59,7 @@ def home(request):
         "blocked": blocked,
     }
 
-    return render(
-        request,
-        "index.html",
-        {
-            "spaces": spaces,
-            "stats": stats,
-        },
-    )
+    return render(request, "index.html", {"spaces": spaces, "stats": stats})
 
 def space_list(request):
     return render(request, "spaces.html", {"spaces": Space.objects.all()})
@@ -124,7 +98,6 @@ def book_space(request):
             pass
 
     if request.method == "POST":
-        # Extract data
         space_id = request.POST.get("space_id")
         date_str = request.POST.get("date")
         start_time_str = request.POST.get("start_time")
@@ -151,11 +124,15 @@ def book_space(request):
         st = parse_time(start_time_str)
         et = parse_time(end_time_str)
 
+        # 1. NEW: Block Past Dates
+        if d < timezone.localdate():
+            messages.error(request, "You cannot book a date in the past.")
+            return redirect("book_space")
+
         if not (d and st and et) or et <= st:
             messages.error(request, "Invalid date or time range.")
             return redirect("book_space")
 
-        # Validation: Blocked Dates & Conflicts
         if BlockedDate.objects.filter(Q(space=space) | Q(space__isnull=True), date=d).exists():
             messages.error(request, "This date is blocked.")
             return redirect("book_space")
@@ -169,22 +146,35 @@ def book_space(request):
             messages.error(request, "Time slot conflicts with an existing booking.")
             return redirect("book_space")
 
-        # Create Booking
+        # === 2. SMART LOGIC: Auto-Approve for Staff ===
+        if request.user.is_staff:
+            booking_status = Booking.STATUS_APPROVED
+            approver = request.user
+        else:
+            booking_status = Booking.STATUS_PENDING
+            approver = None
+
         Booking.objects.create(
             space=space, requested_by=request.user, date=d,
             start_time=st, end_time=et,
             expected_count=expected_count_int, purpose=purpose,
+            status=booking_status, approved_by=approver
         )
 
-        # NOTIFICATION: Alert all admins
-        admins = User.objects.filter(is_staff=True)
-        for admin in admins:
-            Notification.objects.create(
-                user=admin,
-                message=f"New Request: {request.user.username} wants {space.name} on {d}"
-            )
+        # === 3. SMART NOTIFICATIONS ===
+        if request.user.is_staff:
+            # Staff gets instant approval, no notifications sent
+            messages.success(request, "Booking confirmed instantly (Staff Privilege).")
+        else:
+            # Student request -> Notify all admins
+            admins = User.objects.filter(is_staff=True)
+            for admin in admins:
+                Notification.objects.create(
+                    user=admin,
+                    message=f"New Request: {request.user.username} wants {space.name} on {d}"
+                )
+            messages.success(request, "Booking request submitted.")
 
-        messages.success(request, "Booking request submitted.")
         return redirect("my_bookings")
 
     return render(request, "booking_form.html", {"spaces": spaces, "selected_space": selected_space})
@@ -203,13 +193,14 @@ def cancel_booking(request, booking_id):
         booking.save()
         messages.success(request, "Booking cancelled.")
         
-        # Notify Admins of cancellation
-        admins = User.objects.filter(is_staff=True)
-        for admin in admins:
-            Notification.objects.create(
-                user=admin,
-                message=f"Cancelled: {request.user.username} cancelled booking for {booking.space.name}"
-            )
+        # Notify Admins only if a student cancels
+        if not request.user.is_staff:
+            admins = User.objects.filter(is_staff=True)
+            for admin in admins:
+                Notification.objects.create(
+                    user=admin,
+                    message=f"Cancelled: {request.user.username} cancelled booking for {booking.space.name}"
+                )
 
     return redirect("my_bookings")
 
@@ -219,14 +210,12 @@ def cancel_booking(request, booking_id):
 def admin_dashboard(request):
     qs = Booking.objects.select_related("space", "requested_by")
     
-    # Filter Logic
     if request.GET.get("status"): qs = qs.filter(status=request.GET.get("status"))
     if request.GET.get("space_id"): qs = qs.filter(space_id=request.GET.get("space_id"))
     if request.GET.get("date"): qs = qs.filter(date=request.GET.get("date"))
 
     bookings = qs.order_by("-date", "start_time")
     
-    # Statistics
     today = timezone.localdate()
     stats = {
         "today_total": Booking.objects.filter(date=today).count(),
@@ -238,7 +227,6 @@ def admin_dashboard(request):
         "blocked": BlockedDate.objects.count(),
     }
 
-    # Chart Data
     chart_spaces = Space.objects.all()
     space_names = [s.name for s in chart_spaces]
     booking_counts = [
@@ -260,7 +248,6 @@ def approve_booking(request, booking_id):
         booking.approved_by = request.user
         booking.save()
         
-        # NOTIFICATION: Alert Student
         Notification.objects.create(
             user=booking.requested_by,
             message=f"APPROVED: Your booking for {booking.space.name} on {booking.date} is confirmed."
@@ -276,7 +263,6 @@ def reject_booking(request, booking_id):
         booking.approved_by = request.user
         booking.save()
         
-        # NOTIFICATION: Alert Student
         Notification.objects.create(
             user=booking.requested_by,
             message=f"REJECTED: Your booking for {booking.space.name} on {booking.date} was declined."
@@ -291,11 +277,11 @@ def admin_cancel_booking(request, booking_id):
         booking.status = Booking.STATUS_CANCELLED
         booking.save()
         
-        # NOTIFICATION: Alert Student
-        Notification.objects.create(
-            user=booking.requested_by,
-            message=f"CANCELLED: Admin cancelled your booking for {booking.space.name}."
-        )
+        if booking.requested_by != request.user:
+            Notification.objects.create(
+                user=booking.requested_by,
+                message=f"CANCELLED: Admin cancelled your booking for {booking.space.name}."
+            )
         messages.success(request, "Booking cancelled.")
     return redirect("admin_dashboard")
 
@@ -347,11 +333,24 @@ def api_bookings(request):
 
 @login_required
 def mark_notification_read(request, notif_id):
-    """Marks a notification as read and stays on the same page."""
+    """Marks notification read and redirects to the right page."""
     notif = get_object_or_404(Notification, id=notif_id, user=request.user)
     notif.is_read = True
     notif.save()
-    return redirect(request.META.get('HTTP_REFERER', 'home'))
+    
+    # === SMART REDIRECT ===
+    if request.user.is_staff:
+        # Staff clicking a notification means "Check this request" -> Dashboard
+        return redirect('admin_dashboard')
+    else:
+        # Students clicking a notification means "Check my status" -> My Bookings
+        return redirect('my_bookings')
+
+@login_required
+def notification_list(request):
+    """View all notifications (read and unread)."""
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'notifications.html', {'notifications': notifications})
 
 def logout_view(request):
     logout(request)

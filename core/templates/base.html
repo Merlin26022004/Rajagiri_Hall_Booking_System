@@ -70,6 +70,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="notifDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
                             <li class="dropdown-header bg-light fw-bold py-2">Notifications</li>
+                            
                             {% if user_notifications %}
                                 {% for n in user_notifications %}
                                 <li>
@@ -83,6 +84,14 @@
                             {% else %}
                                 <li><div class="dropdown-item text-muted small text-center py-3">No new notifications</div></li>
                             {% endif %}
+                            
+                            <li><hr class="dropdown-divider my-0"></li>
+                            <li>
+                                <a class="dropdown-item text-center small text-primary fw-bold py-2 bg-light" 
+                                   href="{% url 'notification_list' %}">
+                                    View All History
+                                </a>
+                            </li>
                         </ul>
                     </li>
 
