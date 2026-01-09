@@ -21,11 +21,38 @@
             <div class="col-md-5">
                 <div class="p-3 rounded-4 bg-white shadow-sm">
                     <h5 class="fw-semibold mb-2">Today’s Snapshot</h5>
-                    <ul class="mb-0 small">
-                        <li>Total bookings today: {{ stats.today_total|default:0 }}</li>
-                        <li>Pending approvals: {{ stats.pending|default:0 }}</li>
-                        <li>Approved this week: {{ stats.week_approved|default:0 }}</li>
-                        <li>Upcoming blocked dates: {{ stats.blocked|default:0 }}</li>
+                    <ul class="mb-0 small list-unstyled">
+                        <li class="mb-1">
+                            {% if user.is_staff %}
+                                Total bookings today:
+                            {% else %}
+                                My bookings today:
+                            {% endif %}
+                            <strong>{{ stats.today_total|default:0 }}</strong>
+                        </li>
+
+                        <li class="mb-1">
+                            {% if user.is_staff %}
+                                Pending approvals:
+                            {% else %}
+                                My Pending Requests:
+                            {% endif %}
+                            <strong class="text-warning">{{ stats.pending|default:0 }}</strong>
+                        </li>
+
+                        <li class="mb-1">
+                            {% if user.is_staff %}
+                                Approved this week:
+                            {% else %}
+                                My Approved (Week):
+                            {% endif %}
+                            <strong class="text-success">{{ stats.week_approved|default:0 }}</strong>
+                        </li>
+
+                        <li>
+                            Upcoming blocked dates: 
+                            <strong class="text-danger">{{ stats.blocked|default:0 }}</strong>
+                        </li>
                     </ul>
                 </div>
             </div>

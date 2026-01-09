@@ -23,21 +23,69 @@ def is_admin_user(user):
 # ================= Public / Home / Spaces =================
 
 def home(request):
+    """Homepage with hero + personalized snapshot stats."""
     spaces = Space.objects.all()[:6]
     today = timezone.localdate()
     
-    # Simple stats for hero section
+    # Default stats (for anonymous users)
+    today_total = 0
+    pending = 0
+    week_approved = 0
+    
+    # Blocked dates are public information (everyone sees the same count)
+    blocked = BlockedDate.objects.filter(date__gte=today).count()
+
+    if request.user.is_authenticated:
+        if request.user.is_staff:
+            # === ADMIN VIEW: GLOBAL ACTIVITY ===
+            # Admins see how busy the WHOLE system is
+            today_total = Booking.objects.filter(date=today).count()
+            
+            # Critical: Admins see ALL pending requests they need to approve
+            pending = Booking.objects.filter(status=Booking.STATUS_PENDING).count()
+            
+            # Admins see total approved events happening this week
+            week_approved = Booking.objects.filter(
+                status=Booking.STATUS_APPROVED,
+                date__range=[today, today + timedelta(days=6)]
+            ).count()
+            
+        else:
+            # === STUDENT VIEW: PERSONAL ACTIVITY ===
+            # Students only see THEIR OWN bookings
+            today_total = Booking.objects.filter(
+                requested_by=request.user, 
+                date=today
+            ).count()
+            
+            # Critical: Students only see THEIR pending requests
+            pending = Booking.objects.filter(
+                requested_by=request.user, 
+                status=Booking.STATUS_PENDING
+            ).count()
+            
+            # Students see their own upcoming approved bookings
+            week_approved = Booking.objects.filter(
+                requested_by=request.user,
+                status=Booking.STATUS_APPROVED,
+                date__range=[today, today + timedelta(days=6)]
+            ).count()
+
     stats = {
-        "today_total": Booking.objects.filter(date=today).count(),
-        "pending": Booking.objects.filter(status=Booking.STATUS_PENDING).count(),
-        "week_approved": Booking.objects.filter(
-            status=Booking.STATUS_APPROVED,
-            date__range=[today, today + timedelta(days=6)]
-        ).count(),
-        "blocked": BlockedDate.objects.filter(date__gte=today).count(),
+        "today_total": today_total,
+        "pending": pending,
+        "week_approved": week_approved,
+        "blocked": blocked,
     }
 
-    return render(request, "index.html", {"spaces": spaces, "stats": stats})
+    return render(
+        request,
+        "index.html",
+        {
+            "spaces": spaces,
+            "stats": stats,
+        },
+    )
 
 def space_list(request):
     return render(request, "spaces.html", {"spaces": Space.objects.all()})
