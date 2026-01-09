@@ -59,4 +59,5 @@ urlpatterns = [
     ),
     path('calendar/', views.calendar_view, name='calendar'),
     path('api/bookings/', views.api_bookings, name='api_bookings'),
+    path('notifications/read/<int:notif_id>/', views.mark_notification_read, name='mark_notification_read'),
 ]
