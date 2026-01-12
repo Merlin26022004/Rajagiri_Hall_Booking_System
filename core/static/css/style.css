@@ -182,3 +182,47 @@ main {
     color: white;
     transform: translateY(-1px);
 }
+
+.modern-input-group {
+    display: flex;
+    align-items: center; /* Vertically center icon and text */
+    background-color: #fff;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    padding: 8px 16px; /* Space inside the box */
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.modern-input-group:focus-within {
+    border-color: var(--rajagiri-green);
+    box-shadow: 0 0 0 4px rgba(0, 125, 49, 0.1);
+}
+
+.modern-input-icon {
+    color: #9aa0a6;
+    font-size: 1.1rem;
+    margin-right: 12px;
+}
+
+.modern-input-group input, 
+.modern-input-group select, 
+.modern-input-group textarea {
+    border: none;
+    outline: none !important;
+    box-shadow: none !important;
+    width: 100%;
+    background: transparent;
+    color: #3c4043;
+    font-weight: 500;
+    font-size: 1rem;
+    padding: 0; /* Remove default padding */
+}
+
+.modern-input-group textarea {
+    resize: none; 
+}
+
+.modern-input-group select {
+    cursor: pointer;
+}
