@@ -2,65 +2,100 @@
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-lg-7">
             
-            <div class="text-center mb-4">
-                <h3 class="fw-bold">Transport Request</h3>
-                <p class="text-muted small">Submit a travel request for approval by the Transport Officer.</p>
+            <div class="text-center mb-5">
+                <h2 class="fw-bold text-dark">Transport Request</h2>
+                <p class="text-muted">Submit a travel request for approval.</p>
             </div>
 
-            <div class="card-modern p-4">
-                <form method="post">
+            <div class="card-google position-relative overflow-hidden">
+                <div class="position-absolute top-0 start-0 w-100" style="height: 6px; background: linear-gradient(90deg, var(--rajagiri-maroon) 0%, var(--rajagiri-gold) 100%);"></div>
+
+                <form method="post" class="mt-2">
                     {% csrf_token %}
                     
                     <div class="mb-4">
-                        <label class="form-label-modern">Select Vehicle</label>
-                        <select name="bus_id" class="form-select form-control-modern" required>
-                            {% for bus in buses %}
-                            <option value="{{ bus.id }}">
-                                {{ bus.name }} ({{ bus.capacity }} Seats) - {{ bus.number_plate }}
-                            </option>
-                            {% empty %}
-                            <option disabled>No buses available</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label-modern">Destination</label>
-                        <input type="text" name="destination" class="form-control form-control-modern" placeholder="e.g. Infopark, Kakkanad" required>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-12">
-                            <label class="form-label-modern">Date of Journey</label>
-                            <input type="date" name="date" class="form-control form-control-modern" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label-modern">Departs At</label>
-                            <input type="time" name="start_time" class="form-control form-control-modern" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label-modern">Returns At</label>
-                            <input type="time" name="end_time" class="form-control form-control-modern" required>
+                        <label class="label-material">Select Vehicle</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-bus-front"></i></span>
+                            <select name="bus_id" class="form-select form-control-material border-start-0 ps-0" required>
+                                <option value="" disabled selected>-- Choose a Bus --</option>
+                                {% for bus in buses %}
+                                <option value="{{ bus.id }}">
+                                    {{ bus.name }} ({{ bus.capacity }} Seats) - {{ bus.number_plate }}
+                                </option>
+                                {% empty %}
+                                <option disabled>No buses available</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label-modern">Purpose of Visit</label>
-                        <textarea name="purpose" class="form-control form-control-modern" rows="3" placeholder="Describe the official purpose..." required></textarea>
+                        <label class="label-material">Destination</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-geo-alt-fill"></i></span>
+                            <input type="text" name="destination" class="form-control form-control-material border-start-0 ps-0" placeholder="e.g. Infopark, Kakkanad" required>
+                        </div>
                     </div>
 
-                    <button type="submit" class="btn btn-modern-primary w-100">
+                    <div class="section-divider"></div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-12">
+                            <label class="label-material">Date of Journey</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-event"></i></span>
+                                <input type="date" id="journeyDate" name="date" class="form-control form-control-material border-start-0 ps-0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="label-material">Departs At</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-clock"></i></span>
+                                <input type="time" name="start_time" class="form-control form-control-material border-start-0 ps-0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="label-material">Returns At</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-clock-history"></i></span>
+                                <input type="time" name="end_time" class="form-control form-control-material border-start-0 ps-0" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <div class="mb-5">
+                        <label class="label-material">Purpose of Visit</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted pt-2 align-items-start"><i class="bi bi-card-text"></i></span>
+                            <textarea name="purpose" class="form-control form-control-material border-start-0 ps-0" rows="3" style="height: auto; min-height: 100px;" placeholder="Describe the official purpose..." required></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-google w-100 mb-3">
                         Submit Request
                     </button>
                     
-                    <div class="text-center mt-3">
-                        <a href="{% url 'bus_list' %}" class="small text-decoration-none text-muted">Cancel</a>
+                    <div class="text-center">
+                        <a href="{% url 'bus_list' %}" class="text-decoration-none text-muted small fw-bold">Cancel</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('journeyDate');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.setAttribute('min', today);
+        }
+    });
+</script>
 {% endblock %}
