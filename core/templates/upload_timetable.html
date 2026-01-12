@@ -18,7 +18,7 @@
                     <div class="row g-4">
                         <div class="col-md-4">
                             <label class="label-material">Student Count</label>
-                            <input type="number" id="studentCount" class="form-control form-control-material" placeholder="ex. 50">
+                            <input type="number" id="studentCount" name="expected_count" class="form-control form-control-material" placeholder="ex. 50" required>
                         </div>
 
                         <div class="col-md-8">
@@ -73,29 +73,29 @@
                         <div class="col-md-4 standard-time">
                             <label class="label-material">Start Time</label>
                             <select name="start_time_select" class="form-select form-control-material">
-                                <option value="08:30">08:30 AM</option>
-                                <option value="09:30">09:30 AM</option>
-                                <option value="10:30">10:30 AM</option>
-                                <option value="11:30">11:30 AM</option>
-                                <option value="12:30">12:30 PM</option>
-                                <option value="13:30">01:30 PM</option>
-                                <option value="14:30">02:30 PM</option>
-                                <option value="15:30">03:30 PM</option>
-                                <option value="16:30">04:30 PM</option>
+                                <option value="08:00">08:00 AM</option>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="13:00">01:00 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="16:00">04:00 PM</option>
                             </select>
                         </div>
                         <div class="col-md-4 standard-time">
                             <label class="label-material">End Time</label>
                             <select name="end_time_select" class="form-select form-control-material">
-                                <option value="09:30">09:30 AM</option>
-                                <option value="10:30">10:30 AM</option>
-                                <option value="11:30">11:30 AM</option>
-                                <option value="12:30">12:30 PM</option>
-                                <option value="13:30">01:30 PM</option>
-                                <option value="14:30">02:30 PM</option>
-                                <option value="15:30">03:30 PM</option>
-                                <option value="16:30">04:30 PM</option>
-                                <option value="17:30">05:30 PM</option>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="13:00">01:00 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="16:00">04:00 PM</option>
+                                <option value="17:00">05:00 PM</option>
                             </select>
                         </div>
 
@@ -114,11 +114,11 @@
                     <div class="row g-4 mb-5">
                         <div class="col-md-6">
                             <label class="label-material">Semester Start Date</label>
-                            <input type="date" id="startDate" name="sem_start" class="form-control form-control-material" required>
+                            <input type="date" id="startDate" name="sem_start" class="form-control form-control-material" placeholder="Select Start Date..." required>
                         </div>
                         <div class="col-md-6">
                             <label class="label-material">Semester End Date</label>
-                            <input type="date" id="endDate" name="sem_end" class="form-control form-control-material" required>
+                            <input type="date" id="endDate" name="sem_end" class="form-control form-control-material" placeholder="Select End Date..." required>
                         </div>
                     </div>
 

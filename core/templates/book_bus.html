@@ -14,18 +14,26 @@
             <div class="card-google position-relative overflow-hidden">
                 <div class="position-absolute top-0 start-0 w-100" style="height: 6px; background: linear-gradient(90deg, var(--rajagiri-maroon) 0%, var(--rajagiri-gold) 100%);"></div>
 
-                <form method="post" class="mt-4">
+                <form method="post" class="mt-4" id="busForm">
                     {% csrf_token %}
                     
                     <div class="row g-4 mb-4">
+                        <div class="col-md-4">
+                            <label class="label-material">Passengers</label>
+                            <div class="modern-input-group">
+                                <i class="bi bi-people-fill modern-input-icon"></i>
+                                <input type="number" id="headcountInput" name="headcount" placeholder="Ex. 45" min="1" required>
+                            </div>
+                        </div>
+
                         <div class="col-md-8">
                             <label class="label-material">Preferred Vehicle</label>
                             <div class="modern-input-group">
                                 <i class="bi bi-bus-front modern-input-icon"></i>
-                                <select name="bus_id" required>
-                                    <option value="" disabled selected>-- Choose a Bus --</option>
+                                <select name="bus_id" id="busSelect" required>
+                                    <option value="" disabled selected>-- Enter Passengers First --</option>
                                     {% for bus in buses %}
-                                    <option value="{{ bus.id }}">
+                                    <option value="{{ bus.id }}" data-capacity="{{ bus.capacity }}" data-name="{{ bus.name }}">
                                         {{ bus.name }} ({{ bus.capacity }} Seats)
                                     </option>
                                     {% empty %}
@@ -33,14 +41,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="label-material">Passengers</label>
-                            <div class="modern-input-group">
-                                <i class="bi bi-people-fill modern-input-icon"></i>
-                                <input type="number" name="headcount" placeholder="Ex. 45" min="1" required>
-                            </div>
+                            <div id="busSuggestionText" class="form-text fw-bold mt-2" style="display:none; font-size: 0.85rem;"></div>
                         </div>
                     </div>
 
@@ -59,7 +60,7 @@
                             <label class="label-material">Date of Journey</label>
                             <div class="modern-input-group">
                                 <i class="bi bi-calendar-event modern-input-icon"></i>
-                                <input type="date" id="journeyDate" name="date" required>
+                                <input type="date" id="journeyDate" name="date" placeholder="Select Journey Date..." required>
                             </div>
                         </div>
                         
@@ -67,7 +68,7 @@
                             <label class="label-material">Departs At</label>
                             <div class="modern-input-group">
                                 <i class="bi bi-clock modern-input-icon"></i>
-                                <input type="time" id="startTime" name="start_time" required>
+                                <input type="time" id="startTime" name="start_time" placeholder="Select Departure..." required>
                             </div>
                         </div>
                         
@@ -75,7 +76,7 @@
                             <label class="label-material">Returns At</label>
                             <div class="modern-input-group">
                                 <i class="bi bi-clock-history modern-input-icon"></i>
-                                <input type="time" id="endTime" name="end_time" required>
+                                <input type="time" id="endTime" name="end_time" placeholder="Select Return..." required>
                             </div>
                         </div>
                     </div>
@@ -90,7 +91,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-google w-100 mb-3">
+                    <button type="submit" id="submitBtn" class="btn btn-google w-100 mb-3">
                         Submit Request
                     </button>
                     

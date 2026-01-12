@@ -1,10 +1,9 @@
 import json
-from datetime import timedelta
 from datetime import timedelta, date
-from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking
 from django.contrib import messages
-from django.contrib.auth import logout
+from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import JsonResponse, Http404
@@ -12,10 +11,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.views.decorators.http import require_GET
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth import login
 
-from .models import Space, Booking, BlockedDate, Notification
+from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking
 
 # ================= Helpers =================
 
@@ -359,11 +356,20 @@ def logout_view(request):
     logout(request)
     return redirect("home")
 
-# ================= BUS SYSTEM =================
+# ================= BUS SYSTEM (Updated) =================
 
+@login_required
 def bus_list(request):
+    # === UPDATED LOGIC FOR TRANSPORT OFFICER ===
+    if request.user.is_staff:
+        # Transport Officer sees EVERYONE'S bookings
+        bookings = BusBooking.objects.all().order_by('-date')
+    else:
+        # Regular users see ONLY their own bookings
+        bookings = BusBooking.objects.filter(requested_by=request.user).order_by('-date')
+    
     buses = Bus.objects.all()
-    return render(request, "bus_list.html", {"buses": buses})
+    return render(request, "bus_list.html", {"bookings": bookings, "buses": buses})
 
 @login_required
 def book_bus(request):
@@ -392,17 +398,20 @@ def book_bus(request):
             status='Pending' # Buses always pending for Transport Admin
         )
         
-        # Notify Admin
+        # Notify Admin (Transport Officer)
         admins = User.objects.filter(is_staff=True)
         for admin in admins:
-            Notification.objects.create(user=admin, message=f"New BUS Request: {request.user.username} to {destination}")
+            Notification.objects.create(
+                user=admin, 
+                message=f"New BUS Request: {request.user.username} to {destination} on {date_str}"
+            )
             
         messages.success(request, "Bus request submitted to Transport Officer.")
         return redirect("bus_list")
         
     return render(request, "book_bus.html", {"buses": buses})
 
-# ================= TIMETABLE AUTOMATION =================
+# ================= TIMETABLE AUTOMATION (Crash Fixed) =================
 
 @user_passes_test(is_admin_user)
 def upload_timetable(request):
@@ -412,8 +421,11 @@ def upload_timetable(request):
         space_id = request.POST.get("space_id")
         day_of_week = int(request.POST.get("day_of_week"))
         
-        # === LOGIC CHANGE: Check which time input was used ===
-        # If custom time inputs have values, use them. Otherwise use the dropdowns.
+        # === 1. Extract Student Count (FIXED CRASH HERE) ===
+        # We assume 0 if expected_count is missing to prevent IntegrityError
+        expected_count = request.POST.get("expected_count") or 0
+        
+        # === 2. Check Time Inputs ===
         start_custom = request.POST.get("start_time_custom")
         end_custom = request.POST.get("end_time_custom")
         
@@ -423,7 +435,6 @@ def upload_timetable(request):
         else:
             start_time = request.POST.get("start_time_select")
             end_time = request.POST.get("end_time_select")
-        # =====================================================
 
         sem_start = parse_date(request.POST.get("sem_start"))
         sem_end = parse_date(request.POST.get("sem_end"))
@@ -450,7 +461,8 @@ def upload_timetable(request):
                         end_time=end_time,
                         purpose=f"TIMETABLE: {subject}",
                         status=Booking.STATUS_APPROVED,
-                        approved_by=request.user
+                        approved_by=request.user,
+                        expected_count=expected_count  # <--- THIS WAS MISSING BEFORE
                     )
                     booking_count += 1
             
@@ -468,7 +480,6 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            # Redirect to 'next' page if it exists (e.g. they tried to access dashboard), else Home
             if 'next' in request.POST:
                 return redirect(request.POST.get('next'))
             return redirect("home")

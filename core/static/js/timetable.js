@@ -1,10 +1,6 @@
-/* core/static/js/timetable.js */
-
 document.addEventListener('DOMContentLoaded', function() {
     
-    // === 1. SMART CAPACITY LOGIC ===
     const countInput = document.getElementById('studentCount');
-    
     if (countInput) {
         const spaceSelect = document.getElementById('spaceSelect');
         const options = spaceSelect.querySelectorAll('option');
@@ -51,7 +47,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // === 2. TIME TOGGLE LOGIC ===
     const toggle = document.getElementById('customTimeToggle');
     if (toggle) {
         toggle.addEventListener('change', function() {
@@ -76,25 +71,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // === 3. PREVENT PAST DATES (FIXED: Uses Local System Time) ===
-    const startDate = document.getElementById('startDate');
-    if (startDate) {
-        const now = new Date();
-        
-        // Manually build YYYY-MM-DD to respect local timezone (IST)
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        
-        const todayLocal = `${year}-${month}-${day}`;
-        
-        // Block past dates for Start Date
-        startDate.setAttribute('min', todayLocal);
-        document.getElementById('endDate').setAttribute('min', todayLocal);
-        
-        // Ensure End Date cannot be before Start Date
-        startDate.addEventListener('change', function() {
-            document.getElementById('endDate').setAttribute('min', this.value);
-        });
-    }
+    const endPicker = flatpickr("#endDate", {
+        minDate: "today",
+        dateFormat: "Y-m-d",
+        disableMobile: "true"
+    });
+
+    flatpickr("#startDate", {
+        minDate: "today",
+        dateFormat: "Y-m-d",
+        disableMobile: "true",
+        onChange: function(selectedDates, dateStr, instance) {
+            endPicker.set('minDate', dateStr);
+        }
+    });
 });

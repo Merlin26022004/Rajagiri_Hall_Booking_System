@@ -126,7 +126,9 @@ class Bus(models.Model):
     driver_name = models.CharField(max_length=100)
     driver_phone = models.CharField(max_length=15)
     capacity = models.IntegerField()
-    image = models.ImageField(upload_to='buses/', blank=True, null=True)
+    
+    class Meta:
+        verbose_name_plural = "Buses"
 
     def __str__(self):
         return f"{self.name} ({self.number_plate})"
