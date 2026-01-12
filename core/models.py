@@ -151,6 +151,7 @@ class BusBooking(models.Model):
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
+    origin = models.CharField(max_length=200, default="College Campus")
     destination = models.CharField(max_length=255) # Specific to buses
     purpose = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)

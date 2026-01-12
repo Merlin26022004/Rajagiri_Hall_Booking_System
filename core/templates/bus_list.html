@@ -12,7 +12,7 @@
                 <i class="bi bi-bus-front-fill text-success me-2"></i>My Travel Requests
                 {% endif %}
             </h2>
-            <p class="text-muted">
+            <p class="text-muted mb-0">
                 {% if is_transport_officer %}
                 Manage and approve student transport requests.
                 {% else %}
@@ -22,21 +22,21 @@
         </div>
         
         {% if not is_transport_officer %}
-        <a href="{% url 'book_bus' %}" class="btn btn-google">
-            <i class="bi bi-plus-lg me-2"></i>New Request
+        <a href="{% url 'book_bus' %}" class="btn btn-success d-flex align-items-center gap-2 shadow-sm px-4 py-2 rounded-pill">
+            <i class="bi bi-plus-lg"></i> 
+            <span class="fw-semibold">New Request</span>
         </a>
         {% endif %}
     </div>
 
-    <div class="card-google">
+    <div class="card shadow-sm border-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
                         <th class="py-3 ps-4">Date</th>
-                        <th class="py-3">Details</th>
-                        <th class="py-3">Route</th>
-                        <th class="py-3">Requested By</th>
+                        <th class="py-3">Time</th>
+                        <th class="py-3">Route (From &rarr; To)</th> <th class="py-3">Requested By</th>
                         <th class="py-3">Status</th>
                         {% if is_transport_officer %}
                         <th class="py-3 text-end pe-4">Actions</th>
@@ -54,18 +54,23 @@
                         </td>
 
                         <td>
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-geo-alt-fill text-danger me-2"></i>
-                                {{ booking.destination }}
+                            <div class="d-flex flex-column">
+                                <span class="fw-semibold text-dark">
+                                    <i class="bi bi-geo-alt me-1 text-secondary"></i> {{ booking.origin }}
+                                </span>
+                                <i class="bi bi-arrow-down-short text-muted ms-1 my-0"></i>
+                                <span class="fw-semibold text-success">
+                                    <i class="bi bi-geo-alt-fill me-1"></i> {{ booking.destination }}
+                                </span>
                             </div>
                         </td>
 
                         <td>
                             {% if is_transport_officer %}
-                                <div class="fw-bold">{{ booking.requested_by.username }}</div>
+                                <div class="fw-bold text-dark">{{ booking.requested_by.username }}</div>
                                 <small class="text-muted">Applicant</small>
                             {% else %}
-                                <span class="text-muted">Me</span>
+                                <span class="badge bg-light text-dark border">Me</span>
                             {% endif %}
                         </td>
 
@@ -85,13 +90,13 @@
                             <div class="d-flex justify-content-end gap-2">
                                 <form method="post" action="{% url 'approve_bus_booking' booking.id %}">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-success" title="Approve">
+                                    <button type="submit" class="btn btn-sm btn-success shadow-sm" title="Approve">
                                         <i class="bi bi-check-lg"></i>
                                     </button>
                                 </form>
                                 <form method="post" action="{% url 'reject_bus_booking' booking.id %}">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-danger" title="Reject">
+                                    <button type="submit" class="btn btn-sm btn-danger shadow-sm" title="Reject">
                                         <i class="bi bi-x-lg"></i>
                                     </button>
                                 </form>

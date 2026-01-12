@@ -401,11 +401,12 @@ def book_bus(request):
         date_str = request.POST.get("date")
         start_time = request.POST.get("start_time")
         end_time = request.POST.get("end_time")
+        origin = request.POST.get("origin")
         destination = request.POST.get("destination")
         purpose = request.POST.get("purpose")
         
         # Simple Validation
-        if not all([bus_id, date_str, start_time, end_time, destination]):
+        if not all([bus_id, date_str, start_time, end_time, origin, destination]):
             messages.error(request, "Please fill all fields")
             return redirect("book_bus")
             
@@ -415,18 +416,18 @@ def book_bus(request):
             date=date_str,
             start_time=start_time,
             end_time=end_time,
+            origin=origin,
             destination=destination,
             purpose=purpose,
             status='Pending' # Buses always pending for Transport Admin
         )
         
         # Notify Admin (Transport Officer)
-        # Note: You need to add users to the 'Transport' group for them to receive this
         officers = User.objects.filter(groups__name='Transport')
         for officer in officers:
             Notification.objects.create(
                 user=officer, 
-                message=f"New BUS Request: {request.user.username} to {destination} on {date_str}"
+                message=f"New BUS Request: {request.user.username} from {origin} to {destination} on {date_str}"
             )
             
         messages.success(request, "Bus request submitted to Transport Officer.")
