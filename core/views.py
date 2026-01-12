@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
-
+from datetime import timedelta, date
+from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -11,6 +12,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.views.decorators.http import require_GET
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import login
 
 from .models import Space, Booking, BlockedDate, Notification
 
@@ -355,3 +358,121 @@ def notification_list(request):
 def logout_view(request):
     logout(request)
     return redirect("home")
+
+# ================= BUS SYSTEM =================
+
+def bus_list(request):
+    buses = Bus.objects.all()
+    return render(request, "bus_list.html", {"buses": buses})
+
+@login_required
+def book_bus(request):
+    buses = Bus.objects.all()
+    if request.method == "POST":
+        bus_id = request.POST.get("bus_id")
+        date_str = request.POST.get("date")
+        start_time = request.POST.get("start_time")
+        end_time = request.POST.get("end_time")
+        destination = request.POST.get("destination")
+        purpose = request.POST.get("purpose")
+        
+        # Simple Validation
+        if not all([bus_id, date_str, start_time, end_time, destination]):
+            messages.error(request, "Please fill all fields")
+            return redirect("book_bus")
+            
+        BusBooking.objects.create(
+            bus_id=bus_id,
+            requested_by=request.user,
+            date=date_str,
+            start_time=start_time,
+            end_time=end_time,
+            destination=destination,
+            purpose=purpose,
+            status='Pending' # Buses always pending for Transport Admin
+        )
+        
+        # Notify Admin
+        admins = User.objects.filter(is_staff=True)
+        for admin in admins:
+            Notification.objects.create(user=admin, message=f"New BUS Request: {request.user.username} to {destination}")
+            
+        messages.success(request, "Bus request submitted to Transport Officer.")
+        return redirect("bus_list")
+        
+    return render(request, "book_bus.html", {"buses": buses})
+
+# ================= TIMETABLE AUTOMATION =================
+
+@user_passes_test(is_admin_user)
+def upload_timetable(request):
+    spaces = Space.objects.all()
+    
+    if request.method == "POST":
+        space_id = request.POST.get("space_id")
+        day_of_week = int(request.POST.get("day_of_week"))
+        
+        # === LOGIC CHANGE: Check which time input was used ===
+        # If custom time inputs have values, use them. Otherwise use the dropdowns.
+        start_custom = request.POST.get("start_time_custom")
+        end_custom = request.POST.get("end_time_custom")
+        
+        if start_custom and end_custom:
+            start_time = start_custom
+            end_time = end_custom
+        else:
+            start_time = request.POST.get("start_time_select")
+            end_time = request.POST.get("end_time_select")
+        # =====================================================
+
+        sem_start = parse_date(request.POST.get("sem_start"))
+        sem_end = parse_date(request.POST.get("sem_end"))
+        subject = request.POST.get("subject")
+
+        space = get_object_or_404(Space, id=space_id)
+        
+        current_date = sem_start
+        booking_count = 0
+        
+        while current_date <= sem_end:
+            if current_date.weekday() == day_of_week:
+                conflict = Booking.objects.filter(
+                    space=space, date=current_date,
+                    status=Booking.STATUS_APPROVED
+                ).filter(Q(start_time__lt=end_time, end_time__gt=start_time)).exists()
+                
+                if not conflict:
+                    Booking.objects.create(
+                        space=space,
+                        requested_by=request.user,
+                        date=current_date,
+                        start_time=start_time,
+                        end_time=end_time,
+                        purpose=f"TIMETABLE: {subject}",
+                        status=Booking.STATUS_APPROVED,
+                        approved_by=request.user
+                    )
+                    booking_count += 1
+            
+            current_date += timedelta(days=1)
+            
+        messages.success(request, f"Success! Generated {booking_count} bookings for {subject}.")
+        return redirect("admin_dashboard")
+
+    return render(request, "upload_timetable.html", {"spaces": spaces})
+
+def login_view(request):
+    """Custom login view to handle student/staff login."""
+    if request.method == "POST":
+        form = AuthenticationForm(data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            # Redirect to 'next' page if it exists (e.g. they tried to access dashboard), else Home
+            if 'next' in request.POST:
+                return redirect(request.POST.get('next'))
+            return redirect("home")
+    else:
+        form = AuthenticationForm()
+    
+    return render(request, "login.html", {"form": form})

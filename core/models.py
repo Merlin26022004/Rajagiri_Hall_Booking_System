@@ -117,3 +117,42 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.message}"
+    
+# ================= BUS MANAGEMENT =================
+
+class Bus(models.Model):
+    name = models.CharField(max_length=100)  # e.g., "Bus No. 12"
+    number_plate = models.CharField(max_length=20)
+    driver_name = models.CharField(max_length=100)
+    driver_phone = models.CharField(max_length=15)
+    capacity = models.IntegerField()
+    image = models.ImageField(upload_to='buses/', blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.number_plate})"
+
+class BusBooking(models.Model):
+    STATUS_PENDING = 'Pending'
+    STATUS_APPROVED = 'Approved'
+    STATUS_REJECTED = 'Rejected'
+    STATUS_CANCELLED = 'Cancelled'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+        (STATUS_CANCELLED, 'Cancelled'),
+    ]
+
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bus_requests')
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    destination = models.CharField(max_length=255) # Specific to buses
+    purpose = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Bus {self.bus.name} for {self.destination}"

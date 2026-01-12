@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <div class="text-center mb-5">
+                <h2 class="fw-bold display-6 text-dark mb-2">Automated Scheduling</h2>
+                <p class="text-muted">Generate recurring bookings for the entire semester.</p>
+            </div>
+
+            <div class="card-modern">
+                <div class="bg-light border-bottom p-4">
+                    <h5 class="fw-bold m-0 text-dark">
+                        <i class="bi bi-calendar-week me-2 text-success"></i>New Schedule Configuration
+                    </h5>
+                </div>
+
+                <div class="p-4 p-md-5">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="form-section">
+                            <h6 class="text-uppercase fw-bold text-muted mb-3 small tracking-wide">
+                                <i class="bi bi-book me-1"></i> Class Details
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label-modern">Select Lab / Hall</label>
+                                    <select name="space_id" class="form-select form-control-modern" required>
+                                        {% for space in spaces %}
+                                        <option value="{{ space.id }}">{{ space.name }} (Cap: {{ space.capacity }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label-modern">Subject / Class</label>
+                                    <input type="text" name="subject" class="form-control form-control-modern" placeholder="e.g. MCA S2 - Python" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section highlight">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-uppercase fw-bold text-dark mb-0 small">
+                                    <i class="bi bi-clock me-1 text-warning"></i> Time Slots
+                                </h6>
+                                
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="customTimeToggle">
+                                    <label class="form-check-label small fw-bold text-muted cursor-pointer" for="customTimeToggle">Manual Input</label>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label-modern">Day of Week</label>
+                                    <select name="day_of_week" class="form-select form-control-modern fw-bold" required>
+                                        <option value="0">Monday</option>
+                                        <option value="1">Tuesday</option>
+                                        <option value="2">Wednesday</option>
+                                        <option value="3">Thursday</option>
+                                        <option value="4">Friday</option>
+                                        <option value="5">Saturday</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4 standard-time">
+                                    <label class="form-label-modern">Start Time</label>
+                                    <select name="start_time_select" class="form-select form-control-modern">
+                                        <option value="08:30">08:30 AM</option>
+                                        <option value="09:30">09:30 AM</option>
+                                        <option value="10:30">10:30 AM</option>
+                                        <option value="11:30">11:30 AM</option>
+                                        <option value="12:30">12:30 PM</option>
+                                        <option value="13:30">01:30 PM</option>
+                                        <option value="14:30">02:30 PM</option>
+                                        <option value="15:30">03:30 PM</option>
+                                        <option value="16:30">04:30 PM</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 standard-time">
+                                    <label class="form-label-modern">End Time</label>
+                                    <select name="end_time_select" class="form-select form-control-modern">
+                                        <option value="09:30">09:30 AM</option>
+                                        <option value="10:30">10:30 AM</option>
+                                        <option value="11:30">11:30 AM</option>
+                                        <option value="12:30">12:30 PM</option>
+                                        <option value="13:30">01:30 PM</option>
+                                        <option value="14:30">02:30 PM</option>
+                                        <option value="15:30">03:30 PM</option>
+                                        <option value="16:30">04:30 PM</option>
+                                        <option value="17:30">05:30 PM</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4 custom-time d-none">
+                                    <label class="form-label-modern">Start (Manual)</label>
+                                    <input type="time" name="start_time_custom" class="form-control form-control-modern">
+                                </div>
+                                <div class="col-md-4 custom-time d-none">
+                                    <label class="form-label-modern">End (Manual)</label>
+                                    <input type="time" name="end_time_custom" class="form-control form-control-modern">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section mb-4">
+                            <h6 class="text-uppercase fw-bold text-muted mb-3 small tracking-wide">
+                                <i class="bi bi-calendar-range me-1"></i> Duration
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label-modern">Semester Start</label>
+                                    <input type="date" name="sem_start" class="form-control form-control-modern" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label-modern">Semester End</label>
+                                    <input type="date" name="sem_end" class="form-control form-control-modern" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-modern-primary w-100 shadow-lg py-3">
+                            <i class="bi bi-robot me-2"></i>Generate Schedule
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('customTimeToggle').addEventListener('change', function() {
+        const standardInputs = document.querySelectorAll('.standard-time');
+        const customInputs = document.querySelectorAll('.custom-time');
+        
+        if (this.checked) {
+            standardInputs.forEach(el => el.classList.add('d-none'));
+            customInputs.forEach(el => el.classList.remove('d-none'));
+            document.querySelector('[name="start_time_custom"]').required = true;
+            document.querySelector('[name="end_time_custom"]').required = true;
+            document.querySelector('[name="start_time_select"]').required = false;
+            document.querySelector('[name="end_time_select"]').required = false;
+        } else {
+            standardInputs.forEach(el => el.classList.remove('d-none'));
+            customInputs.forEach(el => el.classList.add('d-none'));
+            document.querySelector('[name="start_time_custom"]').required = false;
+            document.querySelector('[name="end_time_custom"]').required = false;
+            document.querySelector('[name="start_time_select"]').required = true;
+            document.querySelector('[name="end_time_select"]').required = true;
+        }
+    });
+</script>
+{% endblock %}

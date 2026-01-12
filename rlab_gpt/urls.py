@@ -1,64 +1,48 @@
 from django.contrib import admin
-from django.urls import path, include  # <--- CHANGE 1: Import 'include'
+from django.urls import path, include
 from core import views
 
 urlpatterns = [
-    # 🔹 Custom Admin Dashboard (must come BEFORE admin.site.urls)
-    path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
-    path(
-        "admin/dashboard/bookings/<int:booking_id>/approve/",
-        views.approve_booking,
-        name="approve_booking",
-    ),
-    path("api/space-day-slots/", views.space_day_slots),
+    # --- 1. Custom Admin Paths (MUST be before admin.site.urls) ---
+    path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
+    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    
+    # Dashboard Actions
+    path('admin/dashboard/bookings/<int:booking_id>/approve/', views.approve_booking, name='approve_booking'),
+    path('admin/dashboard/bookings/<int:booking_id>/reject/', views.reject_booking, name='reject_booking'),
+    path('admin/dashboard/bookings/<int:booking_id>/cancel/', views.admin_cancel_booking, name='admin_cancel_booking'),
 
-    path(
-        "admin/dashboard/bookings/<int:booking_id>/reject/",
-        views.reject_booking,
-        name="reject_booking",
-    ),
-    path(
-        "admin/dashboard/bookings/<int:booking_id>/cancel/",
-        views.admin_cancel_booking,
-        name="admin_cancel_booking",
-    ),
+    # --- 2. Standard Admin Path ---
+    path('admin/', admin.site.urls),
 
-    # Django's own admin site
-    path("admin/", admin.site.urls),
+    # --- 3. Authentication ---
+    # Custom Login/Logout
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    # Standard Django auth for password reset etc (optional)
+    path('accounts/', include('django.contrib.auth.urls')),
 
-    # 🔹 CHANGE 2: Add Standard Auth URLs (Login, Password Reset, etc.)
-    # This enables the link {% url 'login' %} to work!
-    path("accounts/", include("django.contrib.auth.urls")),
+    # --- 4. Main App Paths ---
+    path('', views.home, name='home'),
+    path('spaces/', views.space_list, name='space_list'),
+    path('spaces/<int:space_id>/availability/', views.space_availability, name='space_availability'),
 
-    # Public pages
-    path("", views.home, name="home"),
-    path("spaces/", views.space_list, name="space_list"),
-    path(
-        "spaces/<int:space_id>/availability/",
-        views.space_availability,
-        name="space_availability",
-    ),
+    # Transport / Bus
+    path('buses/', views.bus_list, name='bus_list'),
+    path('buses/book/', views.book_bus, name='book_bus'),
 
-    # Booking flow
-    path("book/", views.book_space, name="book_space"),
-    path("my-bookings/", views.my_bookings, name="my_bookings"),
-    path(
-        "my-bookings/<int:booking_id>/cancel/",
-        views.cancel_booking,
-        name="cancel_booking",
-    ),
+    # Booking
+    path('book/', views.book_space, name='book_space'),
+    path('my-bookings/', views.my_bookings, name='my_bookings'),
+    path('my-bookings/<int:booking_id>/cancel/', views.cancel_booking, name='cancel_booking'),
 
-    # Logout (You can keep your custom one, or use the one inside 'accounts/')
-    path("logout/", views.logout_view, name="logout"),
-
-    # API
-    path(
-        "api/unavailable-dates/",
-        views.api_unavailable_dates,
-        name="api_unavailable_dates",
-    ),
+    # Calendar & API
     path('calendar/', views.calendar_view, name='calendar'),
     path('api/bookings/', views.api_bookings, name='api_bookings'),
-    path('notifications/read/<int:notif_id>/', views.mark_notification_read, name='mark_notification_read'),
+    path('api/unavailable-dates/', views.api_unavailable_dates, name='api_unavailable_dates'),
+    path('api/space-day-slots/', views.space_day_slots, name='space_day_slots'),
+
+    # Notifications
     path('notifications/', views.notification_list, name='notification_list'),
+    path('notifications/read/<int:notif_id>/', views.mark_notification_read, name='mark_notification_read'),
 ]

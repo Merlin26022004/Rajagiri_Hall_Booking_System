@@ -1,3 +1,4 @@
+/* ================= GLOBAL LAYOUT ================= */
 html, body {
     height: 100%;
     margin: 0;
@@ -5,27 +6,24 @@ html, body {
 body {
     display: flex;
     flex-direction: column;
+    font-family: "Segoe UI", "Inter", Roboto, sans-serif; /* Added Inter */
+    background-color: var(--rajagiri-cream);
+    color: #222;
 }
 main {
     flex: 1;
 }
 
+/* ================= COLOR VARIABLES ================= */
 :root {
-    --rajagiri-green: #007D31;      /* New topbar green */
-    --rajagiri-maroon: #145008;     /* Rajagiri red base */
-    --rajagiri-gold:   #F4C542;     /* Highlight golden tone */
-    --rajagiri-cream:  #FFF7E6;     /* Background tint */
-    --rajagiri-dark:   #1A1A1A;     /* Header text black */
+    --rajagiri-green: #007D31;      /* Primary Action Color */
+    --rajagiri-maroon: #145008;     /* Dark Base / Nav */
+    --rajagiri-gold:   #F4C542;     /* Accents */
+    --rajagiri-cream:  #FFF7E6;     /* Page Background */
+    --rajagiri-dark:   #1A1A1A;     /* Text */
 }
 
-/* Body styling */
-body {
-    font-family: "Segoe UI", Roboto, sans-serif;
-    background-color: var(--rajagiri-cream);
-    color: #222;
-}
-
-/* ---------------- PAGE TOP BAR ---------------- */
+/* ================= PAGE TOP BAR ================= */
 .top-bar {
     background-color: var(--rajagiri-green) !important;
     color: #fff;
@@ -33,7 +31,7 @@ body {
     padding: 6px 0;
 }
 
-/* ---------------- NAV BAR ---------------- */
+/* ================= NAV BAR ================= */
 .main-nav {
     background: var(--rajagiri-maroon) !important;
     border-bottom: 3px solid var(--rajagiri-gold);
@@ -51,7 +49,7 @@ body {
     color: var(--rajagiri-gold) !important;
 }
 
-/* ---------------- HERO SECTION ---------------- */
+/* ================= HERO SECTION ================= */
 .hero {
     background: linear-gradient(
         180deg,
@@ -67,6 +65,7 @@ body {
     font-weight: 700;
 }
 
+/* Classic Button (Keep for Home Page) */
 .btn-book {
     background-color: var(--rajagiri-green);
     border: none;
@@ -74,13 +73,15 @@ body {
     font-weight: 700;
     padding: 12px 25px;
     border-radius: 4px;
+    transition: 0.2s;
 }
 
 .btn-book:hover {
-    filter: brightness(0.88);
+    filter: brightness(0.9);
+    color: white;
 }
 
-/* ---------------- CARDS STYLE ---------------- */
+/* ================= STANDARD CARDS ================= */
 .space-card {
     border-radius: 12px;
     border: 2px solid rgba(0,0,0,0.06);
@@ -95,7 +96,6 @@ body {
     border-color: var(--rajagiri-maroon);
 }
 
-/* Section heading style modeled after rajagiri.edu */
 .section-title {
     font-size: 1.6rem;
     padding-left: 12px;
@@ -104,7 +104,7 @@ body {
     color: var(--rajagiri-maroon);
 }
 
-/* ---------------- FOOTER ---------------- */
+/* ================= FOOTER ================= */
 .footer {
     background: var(--rajagiri-green);
     color: #fff;
@@ -113,3 +113,92 @@ body {
 }
 
 .footer p { margin: 0; }
+
+/* ========================================================== */
+/* NEW MODERN UI (TAILWIND STYLE)                   */
+/* ========================================================== */
+
+/* 1. Modern Card: Clean, high shadow, no border */
+.card-modern {
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    background: white;
+    /* MOVE GREEN ACCENT TO BOTTOM */
+    border-bottom: 6px solid var(--rajagiri-green); 
+    overflow: hidden; /* Keeps content inside rounded corners */
+}
+
+.form-section {
+    background-color: #f8fafc; /* Light Slate */
+    border: 1px solid #e2e8f0; /* Crisp grey border */
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-section.highlight {
+    background-color: #fffbeb; /* Very light yellow tint for time */
+    border-color: #fcd34d;      /* Gold border */
+}
+
+/* 2. Modern Inputs: Filled style, soft focus */
+.form-control-modern {
+    background-color: #ffffff; /* White background */
+    border: 1px solid #cbd5e1; /* Slate-300: VISIBLE grey border */
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    color: #1e293b;
+    transition: all 0.2s;
+}
+
+.form-control-modern:focus {
+    border-color: var(--rajagiri-green);
+    box-shadow: 0 0 0 3px rgba(0, 125, 49, 0.1);
+    background-color: #fff;
+}
+
+/* 3. Modern Labels: Uppercase, small, crisp */
+.form-label-modern {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.time-section-container {
+    background-color: #f8fafc; /* Very light slate */
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    /* Dotted line to separate it conceptually */
+    border-left: 4px solid var(--rajagiri-gold); 
+}
+
+/* 4. Modern Primary Button: Fits Rajagiri Theme */
+.btn-modern-primary {
+    background-color: var(--rajagiri-green);
+    color: white;
+    border-radius: 0.75rem;
+    padding: 0.8rem 1.5rem;
+    font-weight: 600;
+    border: none;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(0, 125, 49, 0.2);
+}
+
+.btn-modern-primary:hover {
+    background-color: var(--rajagiri-maroon); /* Darker on hover */
+    transform: translateY(-2px);
+    color: white;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-modern-primary:active {
+    transform: translateY(0);
+}
