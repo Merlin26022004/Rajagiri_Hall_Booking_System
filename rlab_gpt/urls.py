@@ -3,7 +3,7 @@ from django.urls import path, include
 from core import views
 
 urlpatterns = [
-    # --- 1. Custom Admin Paths (MUST be before admin.site.urls) ---
+    # --- 1. Custom Admin Paths ---
     path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     
@@ -16,11 +16,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # --- 3. Authentication ---
-    # Custom Login/Logout
     path('login/', views.login_view, name='login'),
-    path('logout/', views.logout_view, name='logout'),
-    # Standard Django auth for password reset etc (optional)
+    
+    # Standard Django auth (This adds the strict 'logout' named URL)
     path('accounts/', include('django.contrib.auth.urls')),
+
+    # === FIX: MOVE YOUR CUSTOM LOGOUT HERE, AFTER ACCOUNTS ===
+    # This overwrites the strict logout with your simple one
+    path('logout/', views.logout_view, name='logout'),
 
     # --- 4. Main App Paths ---
     path('', views.home, name='home'),
@@ -30,6 +33,8 @@ urlpatterns = [
     # Transport / Bus
     path('buses/', views.bus_list, name='bus_list'),
     path('buses/book/', views.book_bus, name='book_bus'),
+    path('buses/approve/<int:booking_id>/', views.approve_bus_booking, name='approve_bus_booking'),
+    path('buses/reject/<int:booking_id>/', views.reject_bus_booking, name='reject_bus_booking'),
 
     # Booking
     path('book/', views.book_space, name='book_space'),

@@ -1,34 +1,116 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="container py-5">
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>College Bus Fleet</h2>
-        <a href="{% url 'book_bus' %}" class="btn btn-warning fw-bold">
-            <i class="bi bi-truck-front-fill me-2"></i>Request a Bus
+        <div>
+            <h2 class="fw-bold text-dark">
+                {% if user.is_staff %}
+                <i class="bi bi-shield-lock-fill text-warning me-2"></i>Transport Officer Dashboard
+                {% else %}
+                <i class="bi bi-bus-front-fill text-success me-2"></i>My Travel Requests
+                {% endif %}
+            </h2>
+            <p class="text-muted">
+                {% if user.is_staff %}
+                Manage and approve student transport requests.
+                {% else %}
+                Track the status of your bus bookings.
+                {% endif %}
+            </p>
+        </div>
+        
+        <a href="{% url 'book_bus' %}" class="btn btn-google">
+            <i class="bi bi-plus-lg me-2"></i>New Request
         </a>
     </div>
 
-    <div class="row g-4">
-        {% for bus in buses %}
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <h5 class="fw-bold">{{ bus.name }}</h5>
-                        <span class="badge bg-secondary">{{ bus.number_plate }}</span>
-                    </div>
-                    <p class="text-muted small">Driver: {{ bus.driver_name }} ({{ bus.driver_phone }})</p>
-                    <hr>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted"><i class="bi bi-people-fill"></i> {{ bus.capacity }} Seats</span>
-                        <a href="{% url 'book_bus' %}" class="btn btn-sm btn-outline-primary">Book This</a>
-                    </div>
-                </div>
-            </div>
+    <div class="card-google">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="py-3 ps-4">Date</th>
+                        <th class="py-3">Details</th>
+                        <th class="py-3">Route</th>
+                        <th class="py-3">Requested By</th>
+                        <th class="py-3">Status</th>
+                        {% if user.is_staff %}
+                        <th class="py-3 text-end pe-4">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-secondary">{{ booking.date }}</td>
+                        
+                        <td>
+                            <div class="fw-bold text-dark">{{ booking.start_time }} - {{ booking.end_time }}</div>
+                            <small class="text-muted">{{ booking.bus.name }}</small>
+                        </td>
+
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+                                {{ booking.destination }}
+                            </div>
+                        </td>
+
+                        <td>
+                            {% if user.is_staff %}
+                                <div class="fw-bold">{{ booking.requested_by.username }}</div>
+                                <small class="text-muted">Student</small>
+                            {% else %}
+                                <span class="text-muted">Me</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if booking.status == 'Approved' %}
+                                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">Approved</span>
+                            {% elif booking.status == 'Rejected' %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2 rounded-pill">Pending</span>
+                            {% endif %}
+                        </td>
+
+                        {% if user.is_staff %}
+                        <td class="text-end pe-4">
+                            {% if booking.status == 'Pending' %}
+                            <div class="d-flex justify-content-end gap-2">
+                                <form method="post" action="{% url 'approve_bus_booking' booking.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success" title="Approve">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'reject_bus_booking' booking.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Reject">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                                <span class="text-muted small fst-italic">Processed</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            No booking requests found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% empty %}
-        <div class="col-12 text-center text-muted">No buses added yet. Add them in Django Admin.</div>
-        {% endfor %}
     </div>
 </div>
 {% endblock %}

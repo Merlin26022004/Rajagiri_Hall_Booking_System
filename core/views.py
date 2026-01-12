@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group # Added Group import
 from django.db.models import Q
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -20,10 +20,20 @@ def is_admin_user(user):
     """Who can see the custom admin dashboard & approve bookings."""
     return user.is_staff or user.is_superuser
 
+def is_transport_officer(user):
+    """Check if user belongs to the 'Transport' group."""
+    return user.groups.filter(name='Transport').exists()
+
 # ================= Public / Home / Spaces =================
 
 def home(request):
     """Homepage with hero + personalized snapshot stats."""
+    
+    # === SMART REDIRECT ===
+    # If Transport Officer logs in, send them straight to Bus Dashboard.
+    if request.user.is_authenticated and is_transport_officer(request.user):
+        return redirect('bus_list')
+
     spaces = Space.objects.all()[:6]
     today = timezone.localdate()
     
@@ -204,7 +214,7 @@ def cancel_booking(request, booking_id):
 
     return redirect("my_bookings")
 
-# ================= Admin Dashboard =================
+# ================= Admin Dashboard (Hall Booking) =================
 
 @user_passes_test(is_admin_user)
 def admin_dashboard(request):
@@ -340,10 +350,14 @@ def mark_notification_read(request, notif_id):
     
     # === SMART REDIRECT ===
     if request.user.is_staff:
-        # Staff clicking a notification means "Check this request" -> Dashboard
+        # Check if it's a Bus Notification
+        if "BUS" in notif.message or "Bus" in notif.message:
+            return redirect('bus_list')
         return redirect('admin_dashboard')
     else:
-        # Students clicking a notification means "Check my status" -> My Bookings
+        # Students: Check if Bus
+        if "BUS" in notif.message or "Bus" in notif.message:
+            return redirect('bus_list')
         return redirect('my_bookings')
 
 @login_required
@@ -360,8 +374,10 @@ def logout_view(request):
 
 @login_required
 def bus_list(request):
+    is_officer = is_transport_officer(request.user)
+    
     # === UPDATED LOGIC FOR TRANSPORT OFFICER ===
-    if request.user.is_staff:
+    if is_officer:
         # Transport Officer sees EVERYONE'S bookings
         bookings = BusBooking.objects.all().order_by('-date')
     else:
@@ -369,7 +385,13 @@ def bus_list(request):
         bookings = BusBooking.objects.filter(requested_by=request.user).order_by('-date')
     
     buses = Bus.objects.all()
-    return render(request, "bus_list.html", {"bookings": bookings, "buses": buses})
+    
+    # We pass 'is_transport_officer' to template so we can show/hide buttons
+    return render(request, "bus_list.html", {
+        "bookings": bookings, 
+        "buses": buses,
+        "is_transport_officer": is_officer
+    })
 
 @login_required
 def book_bus(request):
@@ -399,10 +421,11 @@ def book_bus(request):
         )
         
         # Notify Admin (Transport Officer)
-        admins = User.objects.filter(is_staff=True)
-        for admin in admins:
+        # Note: You need to add users to the 'Transport' group for them to receive this
+        officers = User.objects.filter(groups__name='Transport')
+        for officer in officers:
             Notification.objects.create(
-                user=admin, 
+                user=officer, 
                 message=f"New BUS Request: {request.user.username} to {destination} on {date_str}"
             )
             
@@ -410,6 +433,38 @@ def book_bus(request):
         return redirect("bus_list")
         
     return render(request, "book_bus.html", {"buses": buses})
+
+# === NEW: TRANSPORT OFFICER ACTIONS ===
+
+@user_passes_test(is_transport_officer)
+def approve_bus_booking(request, booking_id):
+    booking = get_object_or_404(BusBooking, id=booking_id)
+    if request.method == "POST":
+        booking.status = 'Approved'
+        booking.save()
+        
+        # Notify Student
+        Notification.objects.create(
+            user=booking.requested_by,
+            message=f"BUS APPROVED: Your trip to {booking.destination} is confirmed."
+        )
+        messages.success(request, "Bus booking approved.")
+    return redirect("bus_list")
+
+@user_passes_test(is_transport_officer)
+def reject_bus_booking(request, booking_id):
+    booking = get_object_or_404(BusBooking, id=booking_id)
+    if request.method == "POST":
+        booking.status = 'Rejected'
+        booking.save()
+        
+        # Notify Student
+        Notification.objects.create(
+            user=booking.requested_by,
+            message=f"BUS REJECTED: Your trip to {booking.destination} was declined."
+        )
+        messages.success(request, "Bus booking rejected.")
+    return redirect("bus_list")
 
 # ================= TIMETABLE AUTOMATION (Crash Fixed) =================
 
@@ -422,7 +477,6 @@ def upload_timetable(request):
         day_of_week = int(request.POST.get("day_of_week"))
         
         # === 1. Extract Student Count (FIXED CRASH HERE) ===
-        # We assume 0 if expected_count is missing to prevent IntegrityError
         expected_count = request.POST.get("expected_count") or 0
         
         # === 2. Check Time Inputs ===
@@ -462,7 +516,7 @@ def upload_timetable(request):
                         purpose=f"TIMETABLE: {subject}",
                         status=Booking.STATUS_APPROVED,
                         approved_by=request.user,
-                        expected_count=expected_count  # <--- THIS WAS MISSING BEFORE
+                        expected_count=expected_count
                     )
                     booking_count += 1
             
@@ -480,8 +534,14 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            
+            # === SMART LOGIN REDIRECT ===
+            if is_transport_officer(user):
+                return redirect('bus_list')
+            
             if 'next' in request.POST:
                 return redirect(request.POST.get('next'))
+            
             return redirect("home")
     else:
         form = AuthenticationForm()
