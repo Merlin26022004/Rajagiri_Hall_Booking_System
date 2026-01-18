@@ -1,13 +1,20 @@
 from pathlib import Path
+import os
+from dotenv import load_dotenv # 👈 New import
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-rlab-gpt-demo-secret-key-change-me"
+# Now fetches from .env file. If not found, it crashes (safely).
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-# For development
-DEBUG = True
+# SECURITY WARNING: don't run with debug turned on in production!
+# Checks if DEBUG is set to 'True' in .env
+DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = []  # e.g. ["localhost", "127.0.0.1"]
 
@@ -21,7 +28,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    "core",  # 👈 your app
+    "core",  
 ]
 
 MIDDLEWARE = [
@@ -39,9 +46,8 @@ ROOT_URLCONF = "rlab_gpt.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        # You can leave DIRS empty because you're using app templates
         "DIRS": [],
-        "APP_DIRS": True,  # 👈 important: looks inside core/templates
+        "APP_DIRS": True,  
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.debug",
@@ -103,3 +109,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/admin/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
+
+# ================= EMAIL CONFIGURATION =================
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
