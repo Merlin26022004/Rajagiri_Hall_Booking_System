@@ -62,6 +62,9 @@ class Booking(models.Model):
     purpose = models.TextField()
     expected_count = models.PositiveIntegerField()
 
+    # === NEW FIELD: Stores the Faculty Name for Student Bookings ===
+    faculty_in_charge = models.CharField(max_length=150, blank=True, null=True)
+
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING
     )

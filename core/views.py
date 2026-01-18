@@ -144,9 +144,17 @@ def book_space(request):
         end_time_str = request.POST.get("end_time")
         expected_count = request.POST.get("expected_count")
         purpose = request.POST.get("purpose")
+        
+        # NEW: Capture Faculty Name for Student Bookings
+        faculty_name = request.POST.get("faculty_in_charge")
 
         if not all([space_id, date_str, start_time_str, end_time_str, expected_count, purpose]):
             messages.error(request, "Please fill all required fields.")
+            return redirect("book_space")
+
+        # NEW VALIDATION: Students MUST provide a Faculty Name
+        if not request.user.is_staff and not faculty_name:
+            messages.error(request, "Students must specify the Faculty In-Charge who approved this.")
             return redirect("book_space")
 
         space = get_object_or_404(Space, id=space_id)
@@ -164,7 +172,6 @@ def book_space(request):
         st = parse_time(start_time_str)
         et = parse_time(end_time_str)
 
-        # 1. NEW: Block Past Dates
         if d < timezone.localdate():
             messages.error(request, "You cannot book a date in the past.")
             return redirect("book_space")
@@ -186,89 +193,77 @@ def book_space(request):
             messages.error(request, "Time slot conflicts with an existing booking.")
             return redirect("book_space")
 
-        # === 2. SMART LOGIC: Auto-Approve for Staff ===
-        if request.user.is_staff:
-            booking_status = Booking.STATUS_APPROVED
-            approver = request.user
-        else:
-            booking_status = Booking.STATUS_PENDING
-            approver = None
+        # === 2. SMART LOGIC: Auto-Approve for EVERYONE ===
+        # Policy Change: Students are now auto-approved if they provide a reference.
+        booking_status = Booking.STATUS_APPROVED
+        
+        # If Staff, they approved it themselves. If Student, system auto-approves (no system admin ID linked).
+        approver = request.user if request.user.is_staff else None
 
         Booking.objects.create(
             space=space, requested_by=request.user, date=d,
             start_time=st, end_time=et,
             expected_count=expected_count_int, purpose=purpose,
-            status=booking_status, approved_by=approver
+            status=booking_status, approved_by=approver,
+            faculty_in_charge=faculty_name # <--- Saving the reference name
         )
 
-        # === 3. SMART NOTIFICATIONS & EMAIL ===
+        # === 3. SMART NOTIFICATIONS ===
         
-        # Identify Admins (Facility Managers/Receptionists) 
-        # We exclude the current user so they don't get the "Alert" email about their own action
+        # Identify Real Admins (Superusers) to receive alerts
         facility_admins = User.objects.filter(is_superuser=True).exclude(id=request.user.id)
         admin_emails = [u.email for u in facility_admins if u.email]
 
         if request.user.is_staff:
-            # === A. STAFF/FACULTY BOOKING (Auto-Approved) ===
+            # === A. STAFF/FACULTY BOOKING ===
             
             # 1. Send Confirmation to the Booker (Faculty)
             if request.user.email:
                 send_notification_email(
                     subject="Booking Confirmed",
-                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} has been automatically APPROVED.\n\nTime: {st} to {et}\nPurpose: {purpose}",
+                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} has been successfully confirmed.\n\nTime: {st} to {et}\nPurpose: {purpose}",
                     recipients=[request.user.email],
                     context_type="hall"
                 )
             
-            # 2. Notify Facility Managers (Admin/Receptionist)
-            # They need to know a booking happened so they can prepare the room.
+            # 2. Alert Admins
             if admin_emails:
                 send_notification_email(
                     subject=f"New Booking Alert: {space.name}",
-                    message=f"ALERT: Faculty member {request.user.username} has booked {space.name} for {d}.\n\nStatus: Auto-Approved\nTime: {st} to {et}\nPurpose: {purpose}",
+                    message=f"ALERT: {space.name} has been booked by {request.user.username} (Faculty).\n\nDate: {d}\nTime: {st} to {et}\nPurpose: {purpose}",
                     recipients=admin_emails,
                     context_type="hall"
                 )
 
-            # 3. In-App Notifications for Admins
-            for admin in facility_admins:
-                Notification.objects.create(
-                    user=admin,
-                    message=f"Alert: {request.user.username} booked {space.name} (Auto-Approved)"
-                )
-
-            messages.success(request, "Booking confirmed Successfully.")
-        
         else:
-            # === B. STUDENT BOOKING (Pending Approval) ===
+            # === B. STUDENT BOOKING (Auto-Approved with Reference) ===
             
-            # 1. Notify Admins (Need to Approve)
-            if admin_emails:
-                send_notification_email(
-                    subject=f"New Hall Request: {space.name}",
-                    message=f"User {request.user.username} has requested {space.name} on {d}.\n\nLog in to approve: {request.build_absolute_uri('/admin_dashboard/')}",
-                    recipients=admin_emails,
-                    context_type="hall"
-                )
-
-            # In-App Notification
-            for admin in facility_admins:
-                Notification.objects.create(
-                    user=admin,
-                    message=f"New Request: {request.user.username} wants {space.name} on {d}"
-                )
-
-            # 2. Notify Student (Confirmation Email)
+            # 1. Send Confirmation to Student (With Faculty Name included)
             if request.user.email:
                 send_notification_email(
-                    subject="Booking Request Received",
-                    message=f"Dear {request.user.username},\n\nWe have received your request for {space.name} on {d}. You will receive another email once it is approved.",
+                    subject="Booking Confirmed",
+                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} is CONFIRMED.\n\nFaculty In-Charge: {faculty_name}\nTime: {st} to {et}",
                     recipients=[request.user.email],
                     context_type="hall"
                 )
             
-            messages.success(request, "Booking request submitted.")
+            # 2. Alert Admins (With Faculty Name included for verification)
+            if admin_emails:
+                send_notification_email(
+                    subject=f"New Booking Alert: {space.name}",
+                    message=f"ALERT: {space.name} has been booked by Student {request.user.username}.\n\nReferenced Faculty: {faculty_name}\nStatus: Auto-Approved",
+                    recipients=admin_emails,
+                    context_type="hall"
+                )
 
+        # In-App Notifications for Admins
+        for admin in facility_admins:
+            Notification.objects.create(
+                user=admin,
+                message=f"Alert: {request.user.username} booked {space.name}"
+            )
+
+        messages.success(request, "Booking confirmed successfully.")
         return redirect("my_bookings")
 
     return render(request, "booking_form.html", {"spaces": spaces, "selected_space": selected_space})
