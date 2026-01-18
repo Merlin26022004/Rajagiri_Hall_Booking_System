@@ -51,11 +51,28 @@
             <textarea name="purpose" rows="2" class="form-control" required></textarea>
         </div>
 
+        {% if not user.is_staff %}
+        <div class="mb-4 p-3 bg-light rounded border border-warning">
+            <label for="faculty_in_charge" class="form-label fw-semibold text-dark">
+                Faculty In-Charge (Required)
+            </label>
+            <input type="text" 
+                   name="faculty_in_charge" 
+                   id="faculty_in_charge" 
+                   class="form-control" 
+                   placeholder="Enter name of the Professor who approved this" 
+                   required>
+            <small class="text-muted d-block mt-1">
+                Since you are a student, you must specify which faculty member gave you permission.
+            </small>
+        </div>
+        {% endif %}
         <button class="btn btn-book px-4">Submit</button>
     </form>
 </div>
 
 <script>
+// Script kept exactly as you had it to match IDs
 document.getElementById("dateInput").addEventListener("change", loadSlots);
 document.getElementById("spaceSelect").addEventListener("change", loadSlots);
 
