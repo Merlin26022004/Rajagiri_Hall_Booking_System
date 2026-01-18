@@ -9,15 +9,7 @@
         </a>
     </div>
 
-    {% if messages %}
-    <div class="mb-3">
-        {% for msg in messages %}
-        <div class="alert alert-{{ msg.tags|default:'info' }} mb-2">
-            {{ msg }}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
+    {# --- REMOVED DUPLICATE MESSAGE LOOP HERE --- #}
 
     {% if bookings %}
     <div class="table-responsive">

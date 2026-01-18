@@ -4,13 +4,15 @@ from django.contrib import messages
 from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.models import User, Group # Added Group import
+from django.contrib.auth.models import User, Group
 from django.db.models import Q
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.views.decorators.http import require_GET
+from django.core.mail import send_mail
+from django.conf import settings
 
 from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking
 
@@ -23,6 +25,34 @@ def is_admin_user(user):
 def is_transport_officer(user):
     """Check if user belongs to the 'Transport' group."""
     return user.groups.filter(name='Transport').exists()
+
+def send_notification_email(subject, message, recipients, context_type="hall"):
+    """
+    Sends email with dynamic sender name based on context.
+    context_type: 'hall' (default) or 'bus'
+    """
+    if not recipients:
+        return
+
+    # Dynamic Sender Name Logic
+    sender_email = settings.EMAIL_HOST_USER
+    if context_type == "hall":
+        from_email = f"Rajagiri Facility Management <{sender_email}>"
+    elif context_type == "bus":
+        from_email = f"Rajagiri Transport Officer <{sender_email}>"
+    else:
+        from_email = sender_email
+
+    try:
+        send_mail(
+            subject,
+            message,
+            from_email,
+            recipients,
+            fail_silently=True, # Keeps app running even if email fails
+        )
+    except Exception as e:
+        print(f"Email Error: {e}")
 
 # ================= Public / Home / Spaces =================
 
@@ -171,18 +201,72 @@ def book_space(request):
             status=booking_status, approved_by=approver
         )
 
-        # === 3. SMART NOTIFICATIONS ===
+        # === 3. SMART NOTIFICATIONS & EMAIL ===
+        
+        # Identify Admins (Facility Managers/Receptionists) 
+        # We exclude the current user so they don't get the "Alert" email about their own action
+        facility_admins = User.objects.filter(is_superuser=True).exclude(id=request.user.id)
+        admin_emails = [u.email for u in facility_admins if u.email]
+
         if request.user.is_staff:
-            # Staff gets instant approval, no notifications sent
-            messages.success(request, "Booking confirmed instantly (Staff Privilege).")
+            # === A. STAFF/FACULTY BOOKING (Auto-Approved) ===
+            
+            # 1. Send Confirmation to the Booker (Faculty)
+            if request.user.email:
+                send_notification_email(
+                    subject="Booking Confirmed",
+                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} has been automatically APPROVED.\n\nTime: {st} to {et}\nPurpose: {purpose}",
+                    recipients=[request.user.email],
+                    context_type="hall"
+                )
+            
+            # 2. Notify Facility Managers (Admin/Receptionist)
+            # They need to know a booking happened so they can prepare the room.
+            if admin_emails:
+                send_notification_email(
+                    subject=f"New Booking Alert: {space.name}",
+                    message=f"ALERT: Faculty member {request.user.username} has booked {space.name} for {d}.\n\nStatus: Auto-Approved\nTime: {st} to {et}\nPurpose: {purpose}",
+                    recipients=admin_emails,
+                    context_type="hall"
+                )
+
+            # 3. In-App Notifications for Admins
+            for admin in facility_admins:
+                Notification.objects.create(
+                    user=admin,
+                    message=f"Alert: {request.user.username} booked {space.name} (Auto-Approved)"
+                )
+
+            messages.success(request, "Booking confirmed Successfully.")
+        
         else:
-            # Student request -> Notify all admins
-            admins = User.objects.filter(is_staff=True)
-            for admin in admins:
+            # === B. STUDENT BOOKING (Pending Approval) ===
+            
+            # 1. Notify Admins (Need to Approve)
+            if admin_emails:
+                send_notification_email(
+                    subject=f"New Hall Request: {space.name}",
+                    message=f"User {request.user.username} has requested {space.name} on {d}.\n\nLog in to approve: {request.build_absolute_uri('/admin_dashboard/')}",
+                    recipients=admin_emails,
+                    context_type="hall"
+                )
+
+            # In-App Notification
+            for admin in facility_admins:
                 Notification.objects.create(
                     user=admin,
                     message=f"New Request: {request.user.username} wants {space.name} on {d}"
                 )
+
+            # 2. Notify Student (Confirmation Email)
+            if request.user.email:
+                send_notification_email(
+                    subject="Booking Request Received",
+                    message=f"Dear {request.user.username},\n\nWe have received your request for {space.name} on {d}. You will receive another email once it is approved.",
+                    recipients=[request.user.email],
+                    context_type="hall"
+                )
+            
             messages.success(request, "Booking request submitted.")
 
         return redirect("my_bookings")
@@ -258,10 +342,21 @@ def approve_booking(request, booking_id):
         booking.approved_by = request.user
         booking.save()
         
+        # In-App
         Notification.objects.create(
             user=booking.requested_by,
             message=f"APPROVED: Your booking for {booking.space.name} on {booking.date} is confirmed."
         )
+
+        # Email Notification
+        if booking.requested_by.email:
+            send_notification_email(
+                subject="Booking Approved",
+                message=f"Good news! Your booking for {booking.space.name} on {booking.date} has been APPROVED.",
+                recipients=[booking.requested_by.email],
+                context_type="hall"
+            )
+
         messages.success(request, "Booking approved.")
     return redirect("admin_dashboard")
 
@@ -273,10 +368,21 @@ def reject_booking(request, booking_id):
         booking.approved_by = request.user
         booking.save()
         
+        # In-App
         Notification.objects.create(
             user=booking.requested_by,
             message=f"REJECTED: Your booking for {booking.space.name} on {booking.date} was declined."
         )
+
+        # Email Notification
+        if booking.requested_by.email:
+            send_notification_email(
+                subject="Booking Request Declined",
+                message=f"We regret to inform you that your request for {booking.space.name} on {booking.date} has been REJECTED.",
+                recipients=[booking.requested_by.email],
+                context_type="hall"
+            )
+
         messages.success(request, "Booking rejected.")
     return redirect("admin_dashboard")
 
@@ -424,6 +530,26 @@ def book_bus(request):
         
         # Notify Admin (Transport Officer)
         officers = User.objects.filter(groups__name='Transport')
+        officer_emails = [u.email for u in officers if u.email]
+
+        # 1. Email to Transport Officers
+        send_notification_email(
+            subject=f"New Bus Request: {origin} to {destination}",
+            message=f"User {request.user.username} requested a bus on {date_str}.\nRoute: {origin} -> {destination}\nPurpose: {purpose}",
+            recipients=officer_emails,
+            context_type="bus"  # <--- Triggers "Rajagiri Transport Officer" sender name
+        )
+
+        # 2. Confirmation Email to Student
+        if request.user.email:
+            send_notification_email(
+                subject="Bus Request Received",
+                message=f"Dear {request.user.username},\n\nYour bus request for {date_str} ({origin} to {destination}) has been received.",
+                recipients=[request.user.email],
+                context_type="bus"
+            )
+
+        # In-App Notification
         for officer in officers:
             Notification.objects.create(
                 user=officer, 
@@ -444,11 +570,20 @@ def approve_bus_booking(request, booking_id):
         booking.status = 'Approved'
         booking.save()
         
-        # Notify Student
         Notification.objects.create(
             user=booking.requested_by,
             message=f"BUS APPROVED: Your trip to {booking.destination} is confirmed."
         )
+
+        # Email Notification
+        if booking.requested_by.email:
+            send_notification_email(
+                subject="Bus Booking Approved",
+                message=f"Your bus trip to {booking.destination} on {booking.date} has been confirmed.",
+                recipients=[booking.requested_by.email],
+                context_type="bus"
+            )
+
         messages.success(request, "Bus booking approved.")
     return redirect("bus_list")
 
@@ -459,11 +594,20 @@ def reject_bus_booking(request, booking_id):
         booking.status = 'Rejected'
         booking.save()
         
-        # Notify Student
         Notification.objects.create(
             user=booking.requested_by,
             message=f"BUS REJECTED: Your trip to {booking.destination} was declined."
         )
+
+        # Email Notification
+        if booking.requested_by.email:
+            send_notification_email(
+                subject="Bus Booking Rejected",
+                message=f"Your bus trip to {booking.destination} on {booking.date} was unavailable.",
+                recipients=[booking.requested_by.email],
+                context_type="bus"
+            )
+
         messages.success(request, "Bus booking rejected.")
     return redirect("bus_list")
 

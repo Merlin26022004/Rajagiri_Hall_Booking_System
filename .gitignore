@@ -14,3 +14,5 @@ env/
 # OS files
 .DS_Store
 Thumbs.db
+
+.env
