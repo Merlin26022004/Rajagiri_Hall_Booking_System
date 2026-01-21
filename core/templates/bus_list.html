@@ -36,11 +36,10 @@
                     <tr>
                         <th class="py-3 ps-4">Date</th>
                         <th class="py-3">Time</th>
-                        <th class="py-3">Route (From &rarr; To)</th> <th class="py-3">Requested By</th>
+                        <th class="py-3">Route (From &rarr; To)</th> 
+                        <th class="py-3">Requested By</th>
                         <th class="py-3">Status</th>
-                        {% if is_transport_officer %}
                         <th class="py-3 text-end pe-4">Actions</th>
-                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -79,33 +78,47 @@
                                 <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">Approved</span>
                             {% elif booking.status == 'Rejected' %}
                                 <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill">Rejected</span>
+                            {% elif booking.status == 'Cancelled' %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2 rounded-pill">Cancelled</span>
                             {% else %}
                                 <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2 rounded-pill">Pending</span>
                             {% endif %}
                         </td>
 
-                        {% if is_transport_officer %}
                         <td class="text-end pe-4">
-                            {% if booking.status == 'Pending' %}
                             <div class="d-flex justify-content-end gap-2">
-                                <form method="post" action="{% url 'approve_bus_booking' booking.id %}">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-success shadow-sm" title="Approve">
-                                        <i class="bi bi-check-lg"></i>
-                                    </button>
-                                </form>
-                                <form method="post" action="{% url 'reject_bus_booking' booking.id %}">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-danger shadow-sm" title="Reject">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </form>
+                                
+                                {% if is_transport_officer and booking.status == 'Pending' %}
+                                    <form method="post" action="{% url 'approve_bus_booking' booking.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success shadow-sm" title="Approve">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'reject_bus_booking' booking.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger shadow-sm" title="Reject">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                                {% if booking.can_cancel %}
+                                    {% if booking.requested_by == request.user or is_transport_officer %}
+                                        <form method="post" action="{% url 'cancel_bus_booking' booking.id %}" onsubmit="return confirm('Are you sure you want to cancel this trip?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" title="Cancel Booking">
+                                                Cancel
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+
+                                {% if not booking.can_cancel and not is_transport_officer %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
                             </div>
-                            {% else %}
-                                <span class="text-muted small fst-italic">Processed</span>
-                            {% endif %}
                         </td>
-                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
