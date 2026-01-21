@@ -65,20 +65,28 @@ main {
     font-weight: 700;
 }
 
-/* Classic Button (Keep for Home Page) */
+/* ================= CLASSIC BUTTON (Home/Spaces) ================= */
+/* UPDATED FIX: High Specificity to override Bootstrap defaults */
 .btn-book {
-    background-color: var(--rajagiri-green);
+    background-color: var(--rajagiri-green) !important;
     border: none;
-    color: white;
+    color: white !important; /* Force white text initially */
     font-weight: 700;
     padding: 12px 25px;
     border-radius: 4px;
     transition: 0.2s;
+    text-decoration: none; /* Removes underline if Bootstrap adds it */
 }
 
-.btn-book:hover {
-    filter: brightness(0.9);
-    color: white;
+/* Grouped :hover, :focus, :active to ensure stability */
+.btn-book:hover, 
+.btn-book:focus, 
+.btn-book:active {
+    background-color: var(--rajagiri-green) !important; /* Locks BG */
+    color: white !important; /* Locks Text White */
+    filter: brightness(0.9); /* Darkens slightly for effect */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Subtle lift */
+    text-decoration: none;
 }
 
 /* ================= STANDARD CARDS (Home/Spaces) ================= */
