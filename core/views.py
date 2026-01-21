@@ -606,6 +606,64 @@ def reject_bus_booking(request, booking_id):
         messages.success(request, "Bus booking rejected.")
     return redirect("bus_list")
 
+# === NEW: CANCEL BUS BOOKING ===
+@login_required
+def cancel_bus_booking(request, booking_id):
+    booking = get_object_or_404(BusBooking, id=booking_id)
+    is_officer = is_transport_officer(request.user)
+    is_owner = booking.requested_by == request.user
+
+    # SECURITY CHECK: Only Owner or Transport Officer can cancel
+    if not (is_owner or is_officer):
+        messages.error(request, "You do not have permission to cancel this booking.")
+        return redirect("bus_list")
+
+    if request.method == "POST":
+        # 1. Update Status (Soft Delete)
+        booking.status = BusBooking.STATUS_CANCELLED
+        booking.save()
+
+        # 2. NOTIFICATION LOGIC
+        
+        # Scenario A: Student Cancels -> Notify Transport Officer
+        if is_owner and not is_officer:
+            officers = User.objects.filter(groups__name='Transport')
+            officer_emails = [u.email for u in officers if u.email]
+            
+            # Email Officer
+            send_notification_email(
+                subject=f"Bus Trip Cancelled: {booking.destination}",
+                message=f"FYI: {request.user.username} has CANCELLED their bus request to {booking.destination} on {booking.date}.",
+                recipients=officer_emails,
+                context_type="bus"
+            )
+            # In-App for Officer
+            for officer in officers:
+                Notification.objects.create(
+                    user=officer,
+                    message=f"CANCELLED: {request.user.username} cancelled bus to {booking.destination}"
+                )
+
+        # Scenario B: Transport Officer Cancels -> Notify Student
+        elif is_officer:
+            # Email Student
+            if booking.requested_by.email:
+                send_notification_email(
+                    subject="Bus Trip Cancelled by Officer",
+                    message=f"Important: The Transport Officer has cancelled your bus trip to {booking.destination} on {booking.date}.",
+                    recipients=[booking.requested_by.email],
+                    context_type="bus"
+                )
+            # In-App for Student
+            Notification.objects.create(
+                user=booking.requested_by,
+                message=f"ALERT: Officer cancelled your bus to {booking.destination}"
+            )
+
+        messages.success(request, "Bus booking cancelled successfully.")
+
+    return redirect("bus_list")
+
 # ================= TIMETABLE AUTOMATION (Crash Fixed) =================
 
 @user_passes_test(is_admin_user)

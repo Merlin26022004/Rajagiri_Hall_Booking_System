@@ -84,13 +84,26 @@ class Booking(models.Model):
     def __str__(self):
         return f"{self.space.name} on {self.date} ({self.status})"
 
+    # === UPDATED: TIME-AWARE CANCELLATION ===
     @property
     def can_cancel(self):
-        today = timezone.localdate()
-        return self.date >= today and self.status in [
-            self.STATUS_PENDING,
-            self.STATUS_APPROVED,
-        ]
+        """
+        Allows cancellation ONLY if:
+        1. Date is in the future.
+        2. Date is TODAY but Start Time hasn't passed yet.
+        """
+        now = timezone.localtime()
+        
+        # 1. Past Date -> Cannot Cancel
+        if self.date < now.date():
+            return False
+            
+        # 2. Today -> Check Time
+        if self.date == now.date() and now.time() >= self.start_time:
+            return False
+
+        # 3. Future/Valid Time -> Check Status
+        return self.status in [self.STATUS_PENDING, self.STATUS_APPROVED]
 
 
 class BlockedDate(models.Model):
@@ -162,3 +175,24 @@ class BusBooking(models.Model):
 
     def __str__(self):
         return f"Bus {self.bus.name} for {self.destination}"
+
+    # === UPDATED: TIME-AWARE CANCELLATION ===
+    @property
+    def can_cancel(self):
+        """
+        Allows cancellation ONLY if:
+        1. Date is in the future.
+        2. Date is TODAY but Start Time hasn't passed yet.
+        """
+        now = timezone.localtime()
+        
+        # 1. Past Date -> Cannot Cancel
+        if self.date < now.date():
+            return False
+            
+        # 2. Today -> Check Time
+        if self.date == now.date() and now.time() >= self.start_time:
+            return False
+
+        # 3. Future/Valid Time -> Check Status
+        return self.status in [self.STATUS_PENDING, self.STATUS_APPROVED]

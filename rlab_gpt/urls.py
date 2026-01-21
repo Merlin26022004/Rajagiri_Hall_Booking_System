@@ -18,11 +18,10 @@ urlpatterns = [
     # --- 3. Authentication ---
     path('login/', views.login_view, name='login'),
     
-    # Standard Django auth (This adds the strict 'logout' named URL)
+    # Standard Django auth
     path('accounts/', include('django.contrib.auth.urls')),
 
-    # === FIX: MOVE YOUR CUSTOM LOGOUT HERE, AFTER ACCOUNTS ===
-    # This overwrites the strict logout with your simple one
+    # Custom Logout
     path('logout/', views.logout_view, name='logout'),
 
     # --- 4. Main App Paths ---
@@ -35,6 +34,8 @@ urlpatterns = [
     path('buses/book/', views.book_bus, name='book_bus'),
     path('buses/approve/<int:booking_id>/', views.approve_bus_booking, name='approve_bus_booking'),
     path('buses/reject/<int:booking_id>/', views.reject_bus_booking, name='reject_bus_booking'),
+    # === NEW: Bus Cancel Path ===
+    path('buses/cancel/<int:booking_id>/', views.cancel_bus_booking, name='cancel_bus_booking'),
 
     # Booking
     path('book/', views.book_space, name='book_space'),
