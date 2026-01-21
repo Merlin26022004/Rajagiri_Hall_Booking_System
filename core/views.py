@@ -282,14 +282,25 @@ def cancel_booking(request, booking_id):
         booking.save()
         messages.success(request, "Booking cancelled.")
         
-        # Notify Admins only if a student cancels
-        if not request.user.is_staff:
-            admins = User.objects.filter(is_staff=True)
-            for admin in admins:
-                Notification.objects.create(
-                    user=admin,
-                    message=f"Cancelled: {request.user.username} cancelled booking for {booking.space.name}"
-                )
+        # === NOTIFICATION LOGIC ===
+        # 1. Find ALL Superusers (Admins)
+        facility_admins = User.objects.filter(is_superuser=True)
+        admin_emails = [u.email for u in facility_admins if u.email]
+        
+        # 2. Send Email to ALL of them
+        send_notification_email(
+            subject=f"Cancelled: {booking.space.name} on {booking.date}",
+            message=f"FYI: {request.user.username} has CANCELLED their booking for {booking.space.name}.\n\nDate: {booking.date}\nTime: {booking.start_time}",
+            recipients=admin_emails,
+            context_type="hall"
+        )
+
+        # 3. In-App Notification for ALL of them
+        for admin in facility_admins:
+            Notification.objects.create(
+                user=admin,
+                message=f"Cancelled: {request.user.username} cancelled booking for {booking.space.name}"
+            )
 
     return redirect("my_bookings")
 
@@ -388,11 +399,24 @@ def admin_cancel_booking(request, booking_id):
         booking.status = Booking.STATUS_CANCELLED
         booking.save()
         
+        # === UPDATED: NOTIFY USER (EMAIL + IN-APP) ===
         if booking.requested_by != request.user:
+            
+            # 1. Send Email to User
+            if booking.requested_by.email:
+                send_notification_email(
+                    subject=f"IMPORTANT: Booking Cancelled by Admin",
+                    message=f"Your booking for {booking.space.name} on {booking.date} has been CANCELLED by the facility administrator.",
+                    recipients=[booking.requested_by.email],
+                    context_type="hall"
+                )
+
+            # 2. In-App Notification
             Notification.objects.create(
                 user=booking.requested_by,
                 message=f"CANCELLED: Admin cancelled your booking for {booking.space.name}."
             )
+            
         messages.success(request, "Booking cancelled.")
     return redirect("admin_dashboard")
 
