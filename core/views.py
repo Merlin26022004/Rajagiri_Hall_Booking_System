@@ -282,8 +282,9 @@ def cancel_booking(request, booking_id):
         booking.save()
         messages.success(request, "Booking cancelled.")
         
-        # === NOTIFICATION LOGIC ===
-        # 1. Find ALL Superusers (Admins)
+        # === NOTIFICATION LOGIC (UPDATED: Notify Admins regardless of user type) ===
+        
+        # 1. Find ALL Superusers (Facility Admins)
         facility_admins = User.objects.filter(is_superuser=True)
         admin_emails = [u.email for u in facility_admins if u.email]
         
