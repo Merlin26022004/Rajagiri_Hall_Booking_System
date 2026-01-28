@@ -5,6 +5,10 @@ from core import views
 urlpatterns = [
     # --- 1. Custom Admin Paths ---
     path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
+    
+    # === NEW: Clear Timetable Path ===
+    path('admin/timetable/clear/', views.clear_timetable, name='clear_timetable'),
+
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     
     # Dashboard Actions
@@ -34,7 +38,7 @@ urlpatterns = [
     path('buses/book/', views.book_bus, name='book_bus'),
     path('buses/approve/<int:booking_id>/', views.approve_bus_booking, name='approve_bus_booking'),
     path('buses/reject/<int:booking_id>/', views.reject_bus_booking, name='reject_bus_booking'),
-    # === NEW: Bus Cancel Path ===
+    # Bus Cancel Path
     path('buses/cancel/<int:booking_id>/', views.cancel_bus_booking, name='cancel_bus_booking'),
 
     # Booking
