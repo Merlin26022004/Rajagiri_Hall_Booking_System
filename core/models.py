@@ -3,6 +3,17 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
 
+# === NEW MODEL: FACILITIES (Mic, Projector, etc.) ===
+class Facility(models.Model):
+    name = models.CharField(max_length=100)  # e.g., "Projector", "Sound System"
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name_plural = "Facilities"
+
+
 class Space(models.Model):
     HALL = "HALL"
     CLASSROOM = "CLASS"
@@ -19,6 +30,10 @@ class Space(models.Model):
     location = models.CharField(max_length=100, blank=True)
     capacity = models.PositiveIntegerField()
     description = models.TextField(blank=True)
+    
+    # === NEW: Link Facilities to Space ===
+    # Defines what equipment this specific hall HAS.
+    facilities = models.ManyToManyField(Facility, blank=True, related_name="spaces")
 
     # HOD / Lab Incharge / Admin responsible
     managed_by = models.ForeignKey(
@@ -62,8 +77,11 @@ class Booking(models.Model):
     purpose = models.TextField()
     expected_count = models.PositiveIntegerField()
 
-    # === NEW FIELD: Stores the Faculty Name for Student Bookings ===
+    # Stores the Faculty Name for Student Bookings
     faculty_in_charge = models.CharField(max_length=150, blank=True, null=True)
+    
+    # === NEW: User selects specific facilities for THIS booking ===
+    requested_facilities = models.ManyToManyField(Facility, blank=True)
 
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING
@@ -84,7 +102,7 @@ class Booking(models.Model):
     def __str__(self):
         return f"{self.space.name} on {self.date} ({self.status})"
 
-    # === UPDATED: TIME-AWARE CANCELLATION ===
+    # === TIME-AWARE CANCELLATION ===
     @property
     def can_cancel(self):
         """
@@ -176,7 +194,7 @@ class BusBooking(models.Model):
     def __str__(self):
         return f"Bus {self.bus.name} for {self.destination}"
 
-    # === UPDATED: TIME-AWARE CANCELLATION ===
+    # === TIME-AWARE CANCELLATION ===
     @property
     def can_cancel(self):
         """

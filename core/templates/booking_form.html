@@ -51,6 +51,33 @@
             <textarea name="purpose" rows="2" class="form-control" required></textarea>
         </div>
 
+        <div class="mb-4">
+            <label class="form-label fw-semibold d-block">Required Facilities</label>
+            <div class="card bg-light border-0">
+                <div class="card-body p-3">
+                    {% if facilities %}
+                        <div class="row">
+                            {% for facility in facilities %}
+                            <div class="col-md-4 col-sm-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           name="facilities" 
+                                           value="{{ facility.id }}" 
+                                           id="fac_{{ facility.id }}">
+                                    <label class="form-check-label" for="fac_{{ facility.id }}">
+                                        {{ facility.name }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted small mb-0">No specific facilities listed. (Contact Admin to add items)</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         {% if not user.is_staff %}
         <div class="mb-4 p-3 bg-light rounded border border-warning">
             <label for="faculty_in_charge" class="form-label fw-semibold text-dark">
@@ -67,6 +94,7 @@
             </small>
         </div>
         {% endif %}
+
         <button class="btn btn-book px-4">Submit</button>
     </form>
 </div>

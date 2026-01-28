@@ -14,7 +14,8 @@ from django.views.decorators.http import require_GET
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking
+# === ADDED Facility to imports ===
+from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking, Facility
 
 # ================= Helpers =================
 
@@ -128,6 +129,10 @@ def space_availability(request, space_id):
 @login_required
 def book_space(request):
     spaces = Space.objects.all()
+    
+    # === NEW: Fetch all facilities (fallback) ===
+    facilities = Facility.objects.all()
+    
     selected_space_id = request.GET.get("space_id")
     selected_space = None
 
@@ -145,14 +150,17 @@ def book_space(request):
         expected_count = request.POST.get("expected_count")
         purpose = request.POST.get("purpose")
         
-        # NEW: Capture Faculty Name for Student Bookings
+        # Capture Faculty Name for Student Bookings
         faculty_name = request.POST.get("faculty_in_charge")
+        
+        # === NEW: Get the list of selected facility IDs ===
+        selected_facility_ids = request.POST.getlist("facilities")
 
         if not all([space_id, date_str, start_time_str, end_time_str, expected_count, purpose]):
             messages.error(request, "Please fill all required fields.")
             return redirect("book_space")
 
-        # NEW VALIDATION: Students MUST provide a Faculty Name
+        # Validation: Students MUST provide a Faculty Name
         if not request.user.is_staff and not faculty_name:
             messages.error(request, "Students must specify the Faculty In-Charge who approved this.")
             return redirect("book_space")
@@ -194,25 +202,34 @@ def book_space(request):
             return redirect("book_space")
 
         # === 2. SMART LOGIC: Auto-Approve for EVERYONE ===
-        # Policy Change: Students are now auto-approved if they provide a reference.
         booking_status = Booking.STATUS_APPROVED
         
-        # If Staff, they approved it themselves. If Student, system auto-approves (no system admin ID linked).
         approver = request.user if request.user.is_staff else None
 
-        Booking.objects.create(
+        # Create the Booking object first
+        booking = Booking.objects.create(
             space=space, requested_by=request.user, date=d,
             start_time=st, end_time=et,
             expected_count=expected_count_int, purpose=purpose,
             status=booking_status, approved_by=approver,
-            faculty_in_charge=faculty_name # <--- Saving the reference name
+            faculty_in_charge=faculty_name
         )
+        
+        # === NEW: Save the requested facilities to the booking ===
+        if selected_facility_ids:
+            booking.requested_facilities.set(selected_facility_ids)
 
         # === 3. SMART NOTIFICATIONS ===
         
         # Identify Real Admins (Superusers) to receive alerts
         facility_admins = User.objects.filter(is_superuser=True).exclude(id=request.user.id)
         admin_emails = [u.email for u in facility_admins if u.email]
+        
+        # Calculate formatted facilities string for email
+        facility_msg = ""
+        if selected_facility_ids:
+            names = [f.name for f in Facility.objects.filter(id__in=selected_facility_ids)]
+            facility_msg = "\nFacilities Requested: " + ", ".join(names)
 
         if request.user.is_staff:
             # === A. STAFF/FACULTY BOOKING ===
@@ -221,7 +238,7 @@ def book_space(request):
             if request.user.email:
                 send_notification_email(
                     subject="Booking Confirmed",
-                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} has been successfully confirmed.\n\nTime: {st} to {et}\nPurpose: {purpose}",
+                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} has been successfully confirmed.\n\nTime: {st} to {et}\nPurpose: {purpose}{facility_msg}",
                     recipients=[request.user.email],
                     context_type="hall"
                 )
@@ -230,28 +247,28 @@ def book_space(request):
             if admin_emails:
                 send_notification_email(
                     subject=f"New Booking Alert: {space.name}",
-                    message=f"ALERT: {space.name} has been booked by {request.user.username} (Faculty).\n\nDate: {d}\nTime: {st} to {et}\nPurpose: {purpose}",
+                    message=f"ALERT: {space.name} has been booked by {request.user.username} (Faculty).\n\nDate: {d}\nTime: {st} to {et}\nPurpose: {purpose}{facility_msg}",
                     recipients=admin_emails,
                     context_type="hall"
                 )
 
         else:
-            # === B. STUDENT BOOKING (Auto-Approved with Reference) ===
+            # === B. STUDENT BOOKING ===
             
-            # 1. Send Confirmation to Student (With Faculty Name included)
+            # 1. Send Confirmation to Student
             if request.user.email:
                 send_notification_email(
                     subject="Booking Confirmed",
-                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} is CONFIRMED.\n\nFaculty In-Charge: {faculty_name}\nTime: {st} to {et}",
+                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} is CONFIRMED.\n\nFaculty In-Charge: {faculty_name}\nTime: {st} to {et}{facility_msg}",
                     recipients=[request.user.email],
                     context_type="hall"
                 )
             
-            # 2. Alert Admins (With Faculty Name included for verification)
+            # 2. Alert Admins
             if admin_emails:
                 send_notification_email(
                     subject=f"New Booking Alert: {space.name}",
-                    message=f"ALERT: {space.name} has been booked by Student {request.user.username}.\n\nReferenced Faculty: {faculty_name}\nStatus: Auto-Approved",
+                    message=f"ALERT: {space.name} has been booked by Student {request.user.username}.\n\nReferenced Faculty: {faculty_name}\nStatus: Auto-Approved{facility_msg}",
                     recipients=admin_emails,
                     context_type="hall"
                 )
@@ -266,7 +283,12 @@ def book_space(request):
         messages.success(request, "Booking confirmed successfully.")
         return redirect("my_bookings")
 
-    return render(request, "booking_form.html", {"spaces": spaces, "selected_space": selected_space})
+    # Pass facilities to the template
+    return render(request, "booking_form.html", {
+        "spaces": spaces, 
+        "selected_space": selected_space,
+        "facilities": facilities
+    })
 
 @login_required
 def my_bookings(request):
@@ -282,7 +304,7 @@ def cancel_booking(request, booking_id):
         booking.save()
         messages.success(request, "Booking cancelled.")
         
-        # === NOTIFICATION LOGIC (UPDATED: Notify Admins regardless of user type) ===
+        # === NOTIFICATION LOGIC ===
         
         # 1. Find ALL Superusers (Facility Admins)
         facility_admins = User.objects.filter(is_superuser=True)
@@ -435,6 +457,21 @@ def api_unavailable_dates(request):
     ).values_list("date", flat=True)
     
     return JsonResponse([d.isoformat() for d in blocked], safe=False)
+
+# === NEW: API for specific Space Facilities ===
+@require_GET
+@login_required
+def api_space_facilities(request):
+    """Returns the list of facilities available for a specific space."""
+    space_id = request.GET.get("space_id")
+    if not space_id:
+        return JsonResponse([], safe=False)
+    
+    space = get_object_or_404(Space, id=space_id)
+    # Get the facilities linked to this space in the Admin panel
+    facilities = space.facilities.all().values("id", "name")
+    
+    return JsonResponse(list(facilities), safe=False)
 
 @require_GET
 @login_required
@@ -689,7 +726,7 @@ def cancel_bus_booking(request, booking_id):
 
     return redirect("bus_list")
 
-# ================= TIMETABLE AUTOMATION (Crash Fixed) =================
+# ================= TIMETABLE AUTOMATION =================
 
 @user_passes_test(is_admin_user)
 def upload_timetable(request):
@@ -699,10 +736,8 @@ def upload_timetable(request):
         space_id = request.POST.get("space_id")
         day_of_week = int(request.POST.get("day_of_week"))
         
-        # === 1. Extract Student Count (FIXED CRASH HERE) ===
         expected_count = request.POST.get("expected_count") or 0
         
-        # === 2. Check Time Inputs ===
         start_custom = request.POST.get("start_time_custom")
         end_custom = request.POST.get("end_time_custom")
         
@@ -750,13 +785,9 @@ def upload_timetable(request):
 
     return render(request, "upload_timetable.html", {"spaces": spaces})
 
-# === NEW: CLEAR TIMETABLE (Bulk Delete) ===
+# === CLEAR TIMETABLE (Bulk Delete) ===
 @user_passes_test(is_admin_user)
 def clear_timetable(request):
-    """
-    Deletes all FUTURE bookings matching a specific Subject/Purpose.
-    Useful for correcting bulk upload mistakes.
-    """
     if request.method == "POST":
         subject_name = request.POST.get("subject_name")
         
@@ -764,11 +795,8 @@ def clear_timetable(request):
             messages.error(request, "Subject name is required.")
             return redirect("upload_timetable")
 
-        # Security: Only delete FUTURE bookings to preserve history
         today = timezone.localdate()
         
-        # Filter bookings that look like timetable entries
-        # Note: We rely on the format "TIMETABLE: {subject}" used in upload_timetable
         targets = Booking.objects.filter(
             purpose__iexact=f"TIMETABLE: {subject_name}",
             date__gte=today,
@@ -783,7 +811,6 @@ def clear_timetable(request):
         else:
             messages.warning(request, f"No future bookings found for subject '{subject_name}'. Check spelling!")
             
-    # Redirect back to the upload page so they can try again
     return redirect("upload_timetable")
 
 def login_view(request):
@@ -794,7 +821,6 @@ def login_view(request):
             user = form.get_user()
             login(request, user)
             
-            # === SMART LOGIN REDIRECT ===
             if is_transport_officer(user):
                 return redirect('bus_list')
             
