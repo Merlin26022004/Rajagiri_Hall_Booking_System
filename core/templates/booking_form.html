@@ -52,28 +52,12 @@
         </div>
 
         <div class="mb-4">
-            <label class="form-label fw-semibold d-block">Required Facilities</label>
+            <label class="form-label fw-semibold d-block">Available Facilities</label>
             <div class="card bg-light border-0">
                 <div class="card-body p-3">
-                    {% if facilities %}
-                        <div class="row">
-                            {% for facility in facilities %}
-                            <div class="col-md-4 col-sm-6 mb-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" 
-                                           name="facilities" 
-                                           value="{{ facility.id }}" 
-                                           id="fac_{{ facility.id }}">
-                                    <label class="form-check-label" for="fac_{{ facility.id }}">
-                                        {{ facility.name }}
-                                    </label>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted small mb-0">No specific facilities listed. (Contact Admin to add items)</p>
-                    {% endif %}
+                    <div id="facilitiesContainer" class="row">
+                        <p class="text-muted small mb-0 fst-italic">Select a space to see available equipment.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -100,20 +84,26 @@
 </div>
 
 <script>
-// Script kept exactly as you had it to match IDs
 document.getElementById("dateInput").addEventListener("change", loadSlots);
-document.getElementById("spaceSelect").addEventListener("change", loadSlots);
+document.getElementById("spaceSelect").addEventListener("change", function() {
+    loadSlots();
+    loadFacilities(); // <--- Trigger the new function
+});
 
+// 1. Load Time Slots (Existing Logic)
 function loadSlots(){
     const space = document.getElementById("spaceSelect").value;
     const date = document.getElementById("dateInput").value;
-    if(!space || !date) return;
+    const box = document.getElementById("existingSlots");
+    
+    if(!space || !date) {
+        box.classList.add("d-none");
+        return;
+    }
 
     fetch(`/api/space-day-slots/?space_id=${space}&date=${date}`)
     .then(r => r.json())
     .then(data => {
-        const box = document.getElementById("existingSlots");
-
         if(data.length === 0){
             box.classList.add("d-none");
             return;
@@ -123,6 +113,46 @@ function loadSlots(){
         box.innerHTML = "<b>Already booked time slots:</b><br>" +
             data.map(t => `❌ ${t.start} – ${t.end}`).join("<br>");
     });
+}
+
+// 2. Load Facilities (NEW Logic)
+function loadFacilities() {
+    const spaceId = document.getElementById("spaceSelect").value;
+    const container = document.getElementById("facilitiesContainer");
+
+    if (!spaceId) {
+        container.innerHTML = '<p class="text-muted small mb-0 fst-italic">Select a space to see available equipment.</p>';
+        return;
+    }
+
+    // Fetch facilities specific to this space
+    fetch(`/api/space-facilities/?space_id=${spaceId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.length === 0) {
+            container.innerHTML = '<p class="text-muted small mb-0">No specific facilities listed for this hall.</p>';
+            return;
+        }
+
+        // Build Checkboxes dynamically
+        let html = "";
+        data.forEach(fac => {
+            html += `
+            <div class="col-md-4 col-sm-6 mb-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" 
+                           name="facilities" 
+                           value="${fac.id}" 
+                           id="fac_${fac.id}">
+                    <label class="form-check-label" for="fac_${fac.id}">
+                        ${fac.name}
+                    </label>
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+    })
+    .catch(err => console.error("Error loading facilities:", err));
 }
 </script>
 
