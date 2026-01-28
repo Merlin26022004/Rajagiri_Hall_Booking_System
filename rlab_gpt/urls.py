@@ -50,6 +50,10 @@ urlpatterns = [
     path('calendar/', views.calendar_view, name='calendar'),
     path('api/bookings/', views.api_bookings, name='api_bookings'),
     path('api/unavailable-dates/', views.api_unavailable_dates, name='api_unavailable_dates'),
+    
+    # === NEW: API to fetch facilities for a specific space ===
+    path('api/space-facilities/', views.api_space_facilities, name='api_space_facilities'),
+    
     path('api/space-day-slots/', views.space_day_slots, name='space_day_slots'),
 
     # Notifications
