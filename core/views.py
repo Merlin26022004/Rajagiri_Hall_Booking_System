@@ -750,6 +750,42 @@ def upload_timetable(request):
 
     return render(request, "upload_timetable.html", {"spaces": spaces})
 
+# === NEW: CLEAR TIMETABLE (Bulk Delete) ===
+@user_passes_test(is_admin_user)
+def clear_timetable(request):
+    """
+    Deletes all FUTURE bookings matching a specific Subject/Purpose.
+    Useful for correcting bulk upload mistakes.
+    """
+    if request.method == "POST":
+        subject_name = request.POST.get("subject_name")
+        
+        if not subject_name:
+            messages.error(request, "Subject name is required.")
+            return redirect("upload_timetable")
+
+        # Security: Only delete FUTURE bookings to preserve history
+        today = timezone.localdate()
+        
+        # Filter bookings that look like timetable entries
+        # Note: We rely on the format "TIMETABLE: {subject}" used in upload_timetable
+        targets = Booking.objects.filter(
+            purpose__iexact=f"TIMETABLE: {subject_name}",
+            date__gte=today,
+            status=Booking.STATUS_APPROVED
+        )
+        
+        count = targets.count()
+        
+        if count > 0:
+            targets.delete()
+            messages.success(request, f"Successfully deleted {count} future bookings for '{subject_name}'.")
+        else:
+            messages.warning(request, f"No future bookings found for subject '{subject_name}'. Check spelling!")
+            
+    # Redirect back to the upload page so they can try again
+    return redirect("upload_timetable")
+
 def login_view(request):
     """Custom login view to handle student/staff login."""
     if request.method == "POST":
