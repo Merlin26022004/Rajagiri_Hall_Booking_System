@@ -2,86 +2,107 @@
 {% load static %}
 
 {% block content %}
-<div class="container py-4">
-    <h2 class="section-title mb-3">Book a Space</h2>
-
-    <form method="post" class="space-card p-4">
-        {% csrf_token %}
-
-        <div class="mb-3">
-            <label class="form-label fw-semibold">Select Space</label>
-            <select name="space_id" id="spaceSelect" class="form-select" required>
-                <option value="">-- Choose Space --</option>
-                {% for space in spaces %}
-                <option value="{{ space.id }}"
-                    {% if selected_space and selected_space.id == space.id %}selected{% endif %}>
-                    {{ space.name }} ({{ space.get_type_display }})
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-semibold">Date</label>
-            <input type="date" name="date" id="dateInput" class="form-control" required>
-            <small class="text-muted d-block mt-1">
-                Same-day bookings allowed if time does not overlap.
-            </small>
-        </div>
-
-        <div id="existingSlots" class="alert alert-info d-none"></div>
-
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label class="form-label fw-semibold">Start Time</label>
-                <input type="time" name="start_time" class="form-control" required>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-dark">Book a Space</h2>
+                <p class="text-muted">Reserve a hall, lab, or classroom for your event.</p>
             </div>
-            <div class="col-md-6 mb-3">
-                <label class="form-label fw-semibold">End Time</label>
-                <input type="time" name="end_time" class="form-control" required>
-            </div>
-        </div>
 
-        <div class="mb-3">
-            <label class="form-label fw-semibold">Expected Count</label>
-            <input type="number" name="expected_count" class="form-control" required>
-        </div>
+            <div class="card-google mb-5">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row g-4">
+                        
+                        <div class="col-md-12">
+                            <label class="label-material">Select Space</label>
+                            <select name="space_id" id="spaceSelect" class="form-select form-control-material" required>
+                                <option value="">-- Choose Space --</option>
+                                {% for space in spaces %}
+                                <option value="{{ space.id }}"
+                                    {% if selected_space and selected_space.id == space.id %}selected{% endif %}>
+                                    {{ space.name }} ({{ space.get_type_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-        <div class="mb-3">
-            <label class="form-label fw-semibold">Purpose</label>
-            <textarea name="purpose" rows="2" class="form-control" required></textarea>
-        </div>
+                        <div class="col-md-12">
+                            <label class="label-material">Date</label>
+                            <input type="date" name="date" id="dateInput" class="form-control form-control-material" required>
+                            <div id="existingSlots" class="form-text text-danger mt-2 d-none"></div>
+                            <small class="text-muted d-block mt-1 ms-1" style="font-size: 0.8rem;">
+                                Same-day bookings allowed if time does not overlap.
+                            </small>
+                        </div>
 
-        <div class="mb-4">
-            <label class="form-label fw-semibold d-block">Required Facilities</label>
-            <div class="card bg-light border-0">
-                <div class="card-body p-3">
-                    <div id="facilitiesContainer" class="row">
-                        <p class="text-muted small mb-0 fst-italic">Select a space to see available equipment.</p>
+                        <div class="col-md-6">
+                            <label class="label-material">Start Time</label>
+                            <input type="time" name="start_time" class="form-control form-control-material" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="label-material">End Time</label>
+                            <input type="time" name="end_time" class="form-control form-control-material" required>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="label-material">Expected Count</label>
+                            <input type="number" name="expected_count" class="form-control form-control-material" placeholder="ex. 100" required>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="label-material">Purpose / Event Name</label>
+                            <textarea name="purpose" rows="2" class="form-control form-control-material" placeholder="e.g. Annual Tech Symposium" required></textarea>
+                        </div>
+
+                        <div class="section-divider"></div>
+
+                        <div class="col-md-12">
+                            <label class="label-material mb-2" style="color: var(--rajagiri-green);">
+                                <i class="bi bi-speaker-fill me-2"></i>Required Facilities
+                            </label>
+                            <div class="p-3" style="background-color: #f8f9fa; border-radius: 8px; border: 1px dashed #ced4da;">
+                                <div id="facilitiesContainer" class="row g-2">
+                                    <p class="text-muted small mb-0 fst-italic text-center">
+                                        Select a space above to see available equipment.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if not user.is_staff %}
+                        <div class="col-md-12">
+                            <div class="p-3 rounded border border-warning" style="background-color: #fff9e6;">
+                                <label class="label-material text-dark mb-1">Faculty In-Charge (Required)</label>
+                                <input type="text" 
+                                       name="faculty_in_charge" 
+                                       id="faculty_in_charge" 
+                                       class="form-control form-control-material" 
+                                       style="background-color: #fff;"
+                                       placeholder="Enter name of the Professor..." 
+                                       required>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="bi bi-info-circle me-1"></i>Since you are a student, you must specify the faculty member who approved this.
+                                </small>
+                            </div>
+                        </div>
+                        {% endif %}
+
                     </div>
-                </div>
+
+                    <div class="mt-5">
+                        <button type="submit" class="btn btn-google w-100">
+                            Confirm Booking
+                        </button>
+                    </div>
+                </form>
             </div>
-        </div>
 
-        {% if not user.is_staff %}
-        <div class="mb-4 p-3 bg-light rounded border border-warning">
-            <label for="faculty_in_charge" class="form-label fw-semibold text-dark">
-                Faculty In-Charge (Required)
-            </label>
-            <input type="text" 
-                   name="faculty_in_charge" 
-                   id="faculty_in_charge" 
-                   class="form-control" 
-                   placeholder="Enter name of the Professor who approved this" 
-                   required>
-            <small class="text-muted d-block mt-1">
-                Since you are a student, you must specify which faculty member gave you permission.
-            </small>
         </div>
-        {% endif %}
-
-        <button class="btn btn-book px-4">Submit</button>
-    </form>
+    </div>
 </div>
 
 <script src="{% static 'js/booking.js' %}"></script>
