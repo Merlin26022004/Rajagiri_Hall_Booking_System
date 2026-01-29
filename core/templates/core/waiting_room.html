@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5 text-center">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 p-5">
+                <div class="mb-3 text-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-hourglass-split" viewBox="0 0 16 16">
+                        <path d="M2.5 15a.5.5 0 1 1 0-1h1v-1a4.5 4.5 0 0 1 2.557-4.06c.29-.139.443-.377.443-.59v-.7c0-.213-.154-.451-.443-.59A4.5 4.5 0 0 1 2.5 3a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1 4.5 4.5 0 0 1-2.557 4.06c-.29.139-.443.377-.443.59v.7c0 .213.154.451.443.59A4.5 4.5 0 0 1 13.5 15a.5.5 0 0 1 0 1h-11zm2.763-8.713a3.5 3.5 0 0 0 2.636 2.636l-5.462 2.73A3.5 3.5 0 0 0 6.077 6.287zM6 11.237a3.5 3.5 0 0 0 1.224 2.763H8.75A3.5 3.5 0 0 0 6 11.237z"/>
+                    </svg>
+                </div>
+                
+                <h2 class="fw-bold mb-3">Account Pending Approval</h2>
+                
+                <p class="text-muted lead mb-4">
+                    Welcome! 
+                    <br>
+                    You have successfully signed in with Google, but you do not have permission to book facilities yet.
+                </p>
+
+                <div class="alert alert-light border small text-start">
+                    <strong>Next Steps:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Contact the <strong>Super Admin</strong> or Faculty In-Charge.</li>
+                        <li>Ask them to add you to the <strong>"Student Rep"</strong> or <strong>"Faculty"</strong> group.</li>
+                        <li>Once added, refresh this page or try booking again.</li>
+                    </ul>
+                </div>
+
+                <div class="mt-4">
+                    <a href="{% url 'home' %}" class="btn btn-outline-primary">Return Home</a>
+                    <a href="{% url 'logout' %}" class="btn btn-link text-muted">Logout</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

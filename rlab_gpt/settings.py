@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-from dotenv import load_dotenv # 👈 New import
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -9,15 +9,12 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# Now fetches from .env file. If not found, it crashes (safely).
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Checks if DEBUG is set to 'True' in .env
 DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = []  # e.g. ["localhost", "127.0.0.1"]
-
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 # Application definition
 INSTALLED_APPS = [
@@ -27,8 +24,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",  # 👈 REQUIRED by allauth
 
+    # --- Local Apps (Moved UP to override allauth templates) ---
     "core",  
+
+    # --- 3rd Party Apps (Allauth) ---
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google", # Google Provider
 ]
 
 MIDDLEWARE = [
@@ -39,19 +44,23 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    
+    # 👈 REQUIRED: Allauth middleware (must be after AuthenticationMiddleware)
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
+# Make sure this matches your actual project folder name!
 ROOT_URLCONF = "rlab_gpt.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],  # 👈 CRITICAL FIX: Points to your templates folder
         "APP_DIRS": True,  
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.debug",
-                "django.template.context_processors.request",
+                "django.template.context_processors.request", # 👈 Required by allauth
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.user_notifications",
@@ -62,7 +71,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "rlab_gpt.wsgi.application"
 
-
 # Database: default SQLite
 DATABASES = {
     "default": {
@@ -71,23 +79,22 @@ DATABASES = {
     }
 }
 
+# --- AUTHENTICATION BACKENDS ---
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin
+    'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods (e-mail login)
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    { "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator" },
+    { "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator" },
+    { "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator" },
+    { "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator" },
 ]
-
 
 # Internationalization
 LANGUAGE_CODE = "en-us"
@@ -95,26 +102,46 @@ TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
 USE_TZ = True
 
-
 # Static files (CSS, JS)
 STATIC_URL = "static/"
-
-# So Django can find core/static/css/style.css and js/booking.js
 STATICFILES_DIRS = [
     BASE_DIR / "core" / "static",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = "/admin/login/"
-LOGIN_REDIRECT_URL = "/"
-LOGOUT_REDIRECT_URL = "/"
-
 # ================= EMAIL CONFIGURATION =================
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+# ================= ALLAUTH CONFIGURATION =================
+SITE_ID = 1
+
+# User Settings
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None # We don't use usernames
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_VERIFICATION = 'none' # Google handles verification
+
+# Redirects
+LOGIN_URL = "/login/" # Default to Google Login
+LOGIN_REDIRECT_URL = "/"  # Redirect to home after login
+LOGOUT_REDIRECT_URL = "/" # Redirect to home after logout
+
+# Google Provider Settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        }
+    }
+}

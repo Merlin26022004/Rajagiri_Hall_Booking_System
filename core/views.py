@@ -3,7 +3,8 @@ from datetime import timedelta, date
 from django.contrib import messages
 from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.forms import AuthenticationForm
+# 1. RESTORED THIS IMPORT FOR MANUAL LOGIN
+from django.contrib.auth.forms import AuthenticationForm 
 from django.contrib.auth.models import User, Group
 from django.db.models import Q
 from django.http import JsonResponse, Http404
@@ -14,8 +15,10 @@ from django.views.decorators.http import require_GET
 from django.core.mail import send_mail
 from django.conf import settings
 
-# === ADDED Facility to imports ===
+# === IMPORTS ===
 from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking, Facility
+# 2. IMPORT THE NEW DECORATOR
+from .decorators import approval_required
 
 # ================= Helpers =================
 
@@ -127,6 +130,7 @@ def space_availability(request, space_id):
 # ================= Booking Logic =================
 
 @login_required
+@approval_required # 3. BLOCKS UNAUTHORIZED USERS FROM BOOKING
 def book_space(request):
     spaces = Space.objects.all()
     
@@ -557,6 +561,7 @@ def bus_list(request):
     })
 
 @login_required
+@approval_required # 4. BLOCKS UNAUTHORIZED USERS FROM BOOKING BUSES
 def book_bus(request):
     buses = Bus.objects.all()
     if request.method == "POST":
@@ -813,22 +818,35 @@ def clear_timetable(request):
             
     return redirect("upload_timetable")
 
+# === 5. HYBRID LOGIN VIEW (FIXED) ===
 def login_view(request):
-    """Custom login view to handle student/staff login."""
+    """
+    Handles TWO types of login:
+    1. Google OAuth (handled by Allauth URLs in template).
+    2. Manual Username/Password (handled here for your test accounts).
+    """
+    if request.user.is_authenticated:
+        return redirect("home")
+
     if request.method == "POST":
+        # Handle manual login for test accounts
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
             
+            # 1. Transport Officers check
             if is_transport_officer(user):
                 return redirect('bus_list')
             
-            if 'next' in request.POST:
-                return redirect(request.POST.get('next'))
+            # 2. SAFE Redirect Logic
+            next_url = request.POST.get('next')
+            if not next_url:
+                next_url = 'home'
             
-            return redirect("home")
+            return redirect(next_url)
     else:
+        # Just render the page (template has the Google Link)
         form = AuthenticationForm()
     
     return render(request, "login.html", {"form": form})
