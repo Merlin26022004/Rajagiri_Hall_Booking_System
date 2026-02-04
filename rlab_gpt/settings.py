@@ -118,18 +118,24 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
-# ================= ALLAUTH CONFIGURATION =================
+# ================= ALLAUTH CONFIGURATION (UPDATED) =================
 SITE_ID = 1
 
-# User Settings
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None # We don't use usernames
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
+# 1. Login Logic: Use Email, but FORCE a Username to exist in DB
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = True   # <--- CHANGED TO TRUE: Prevents "nameless" user crashes
+
+# 2. Auto-Generate Username from Email (Frictionless)
+# If email is 'sreeraj@gmail.com', username becomes 'sreeraj'
+SOCIALACCOUNT_AUTO_SIGNUP = True   # <--- KEY FIX: Skips additional signup forms
+ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
+
+# 3. Verification
 ACCOUNT_EMAIL_VERIFICATION = 'none' # Google handles verification
 
 # Redirects
-LOGIN_URL = "/login/" # Default to Google Login
+LOGIN_URL = "/login/" 
 LOGIN_REDIRECT_URL = "/"  # Redirect to home after login
 LOGOUT_REDIRECT_URL = "/" # Redirect to home after logout
 
