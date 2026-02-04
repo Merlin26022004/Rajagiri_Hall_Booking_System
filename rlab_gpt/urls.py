@@ -5,10 +5,7 @@ from core import views
 urlpatterns = [
     # --- 1. Custom Admin Paths ---
     path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
-    
-    # === NEW: Clear Timetable Path ===
     path('admin/timetable/clear/', views.clear_timetable, name='clear_timetable'),
-
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     
     # Dashboard Actions
@@ -17,14 +14,17 @@ urlpatterns = [
     path('admin/dashboard/bookings/<int:booking_id>/cancel/', views.admin_cancel_booking, name='admin_cancel_booking'),
 
     # --- 2. Standard Admin Path ---
+    # This handles the Superuser login automatically
     path('admin/', admin.site.urls),
 
     # --- 3. Authentication ---
+    # ⚠️ REPLACED: "django.contrib.auth.urls" with "allauth.urls"
+    # This enables http://localhost:8000/accounts/google/login/
+    path('accounts/', include('allauth.urls')),
+
+    # Custom Login Page (We will update the template for this next)
     path('login/', views.login_view, name='login'),
     
-    # Standard Django auth
-    path('accounts/', include('django.contrib.auth.urls')),
-
     # Custom Logout
     path('logout/', views.logout_view, name='logout'),
 
@@ -38,7 +38,6 @@ urlpatterns = [
     path('buses/book/', views.book_bus, name='book_bus'),
     path('buses/approve/<int:booking_id>/', views.approve_bus_booking, name='approve_bus_booking'),
     path('buses/reject/<int:booking_id>/', views.reject_bus_booking, name='reject_bus_booking'),
-    # Bus Cancel Path
     path('buses/cancel/<int:booking_id>/', views.cancel_bus_booking, name='cancel_bus_booking'),
 
     # Booking
@@ -51,9 +50,8 @@ urlpatterns = [
     path('api/bookings/', views.api_bookings, name='api_bookings'),
     path('api/unavailable-dates/', views.api_unavailable_dates, name='api_unavailable_dates'),
     
-    # === NEW: API to fetch facilities for a specific space ===
+    # Facilities API
     path('api/space-facilities/', views.api_space_facilities, name='api_space_facilities'),
-    
     path('api/space-day-slots/', views.space_day_slots, name='space_day_slots'),
 
     # Notifications
