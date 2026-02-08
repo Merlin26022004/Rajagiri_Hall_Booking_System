@@ -285,6 +285,78 @@ main {
     background: #e9ecef;
 }
 
+/* 7c. Date Input Placeholder Fix */
+.modern-input-group input[type="date"]:not(:focus):invalid,
+.modern-input-group input[type="date"]:not(:focus):placeholder-shown {
+    color: #9aa0a6;
+}
+
+.modern-input-group input[type="date"]:not(:focus):invalid::before,
+.modern-input-group input[type="date"]:not(:focus):not([value])::before {
+    content: attr(data-placeholder);
+    color: #9aa0a6;
+    font-weight: 400;
+}
+
+.modern-input-group input[type="date"]:focus::before,
+.modern-input-group input[type="date"]:valid::before {
+    content: none;
+}
+
+/* Alternative: Show text when empty */
+.modern-input-group input[type="date"] {
+    position: relative;
+    color: #3c4043;
+}
+
+.modern-input-group input[type="date"]::-webkit-datetime-edit-text,
+.modern-input-group input[type="date"]::-webkit-datetime-edit-month-field,
+.modern-input-group input[type="date"]::-webkit-datetime-edit-day-field,
+.modern-input-group input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #3c4043;
+}
+
+/* When date input is empty, show lighter color */
+.modern-input-group input[type="date"]:not(:focus):not(:valid)::-webkit-datetime-edit {
+    color: transparent;
+}
+
+/* 7c. Date and Time Input Fix - Show Native Pickers */
+.modern-input-group input[type="date"],
+.modern-input-group input[type="time"] {
+    /* Allow native date/time picker to show */
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    appearance: auto;
+    
+    /* Proper sizing */
+    padding-right: 8px;
+    cursor: pointer;
+    
+    /* Ensure text is visible */
+    color: #3c4043 !important;
+    font-size: 1rem;
+}
+
+/* Show calendar/clock icon properly */
+.modern-input-group input[type="date"]::-webkit-calendar-picker-indicator,
+.modern-input-group input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+    padding-left: 4px;
+}
+
+.modern-input-group input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.modern-input-group input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* Placeholder-like text for empty date inputs */
+.modern-input-group input[type="date"]:invalid,
+.modern-input-group input[type="time"]:invalid {
+    color: #9aa0a6;
+}
+
 /* 8. Utilities */
 .rajagiri-maroon-text {
     color: var(--rajagiri-maroon);

@@ -134,14 +134,20 @@
                             <label class="label-material">Semester Start</label>
                             <div class="modern-input-group">
                                 <i class="bi bi-calendar-event modern-input-icon"></i>
-                                <input type="date" id="startDate" name="sem_start" class="form-control" required>
+                                <input type="date" id="startDate" name="sem_start" class="form-control" required 
+                                       onfocus="(this.type='date')" 
+                                       onblur="if(!this.value)this.type='text'" 
+                                       placeholder="Select start date">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <label class="label-material">Semester End</label>
                             <div class="modern-input-group">
                                 <i class="bi bi-calendar-check modern-input-icon"></i>
-                                <input type="date" id="endDate" name="sem_end" class="form-control" required>
+                                <input type="date" id="endDate" name="sem_end" class="form-control" required
+                                       onfocus="(this.type='date')" 
+                                       onblur="if(!this.value)this.type='text'" 
+                                       placeholder="Select end date">
                             </div>
                         </div>
                     </div>
