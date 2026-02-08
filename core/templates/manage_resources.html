@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="section-title mb-0">Resource Management</h2>
+        <a href="{% url 'space_list' %}" class="btn btn-outline-secondary btn-sm rounded-pill">
+            <i class="bi bi-arrow-left"></i> Back to Spaces
+        </a>
+    </div>
+
+    <ul class="nav nav-pills mb-4" id="pills-tab" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active rounded-pill px-4" id="pills-spaces-tab" data-bs-toggle="pill" data-bs-target="#pills-spaces" type="button">
+                <i class="bi bi-building me-2"></i>Spaces
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link rounded-pill px-4" id="pills-facilities-tab" data-bs-toggle="pill" data-bs-target="#pills-facilities" type="button">
+                <i class="bi bi-tools me-2"></i>Facilities
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="pills-tabContent">
+        
+        <div class="tab-pane fade show active" id="pills-spaces" role="tabpanel">
+            <div class="row g-4">
+                
+                <div class="col-lg-4">
+                    <div class="card-google">
+                        <h4 class="fw-bold mb-4 rajagiri-maroon-text">Add New Space</h4>
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label class="label-material">Space Name</label>
+                                <div class="modern-input-group">
+                                    <i class="bi bi-fonts modern-input-icon"></i>
+                                    {{ space_form.name }}
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="label-material">Type</label>
+                                    <div class="modern-input-group">
+                                        <i class="bi bi-grid modern-input-icon"></i>
+                                        {{ space_form.type }}
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="label-material">Capacity</label>
+                                    <div class="modern-input-group">
+                                        <i class="bi bi-people modern-input-icon"></i>
+                                        {{ space_form.capacity }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="label-material">Location</label>
+                                <div class="modern-input-group">
+                                    <i class="bi bi-geo-alt modern-input-icon"></i>
+                                    {{ space_form.location }}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="label-material">Description</label>
+                                <div class="modern-input-group description-group align-items-start">
+                                    <i class="bi bi-card-text modern-input-icon mt-2"></i>
+                                    {{ space_form.description }}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="label-material">Cover Image</label>
+                                <div class="modern-input-group">
+                                    <i class="bi bi-image modern-input-icon"></i>
+                                    {{ space_form.image }}
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="label-material mb-2">Facilities</label>
+                                <div class="facilities-container p-3 rounded bg-light border">
+                                    <div class="row g-2">
+                                        {% for checkbox in space_form.facilities %}
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                {{ checkbox.tag }}
+                                                <label class="form-check-label small" for="{{ checkbox.id_for_label }}">
+                                                    {{ checkbox.choice_label }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% empty %}
+                                        <div class="col-12 text-muted small">
+                                            No facilities found. Add them in the <b>Facilities</b> tab.
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" name="add_space" class="btn-book w-100">Create Space</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="card-google">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="fw-bold mb-0 rajagiri-maroon-text">Existing Spaces</h4>
+                            <span class="badge bg-light text-dark border rounded-pill px-3">{{ spaces.count }} Total</span>
+                        </div>
+                        
+                        <div class="space-list-wrapper">
+                            {% for space in spaces %}
+                            <div class="space-item-row d-flex align-items-center justify-content-between p-3 mb-3 shadow-sm rounded border bg-white">
+                                <div class="d-flex align-items-center flex-grow-1">
+                                    <div class="space-thumb me-3">
+                                        {% if space.image %}
+                                            <img src="{{ space.image.url }}" class="rounded">
+                                        {% else %}
+                                            <div class="thumb-placeholder rounded bg-light d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-image text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="space-info">
+                                        <h6 class="fw-bold mb-0">{{ space.name }}</h6>
+                                        <small class="text-muted">{{ space.get_type_display }} • Cap: {{ space.capacity }}</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="space-facilities flex-grow-1 px-3 d-none d-md-block">
+                                    {% for fac in space.facilities.all|slice:":3" %}
+                                        <span class="badge bg-light text-dark border small me-1">{{ fac.name }}</span>
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="space-actions">
+                                    <a href="{% url 'delete_space' space.pk %}" class="btn btn-link text-danger p-0" onclick="return confirm('Delete {{ space.name }}?')">
+                                        <i class="bi bi-trash-fill fs-5"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-5">
+                                <p class="text-muted mb-0">No spaces added yet.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="pills-facilities" role="tabpanel">
+            <div class="row justify-content-center g-4">
+                
+                <div class="col-md-5">
+                    <div class="card-google text-center">
+                        <div class="mb-3 text-success">
+                            <i class="bi bi-speaker fs-1"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3 rajagiri-maroon-text">Add Facility</h4>
+                        <p class="text-muted small mb-4">Create shared resources like Projectors, Mics, or Speakers.</p>
+                        
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-4 text-start">
+                                <label class="label-material">Facility Name</label>
+                                <div class="modern-input-group">
+                                    <i class="bi bi-tag modern-input-icon"></i>
+                                    {{ facility_form.name }}
+                                </div>
+                            </div>
+                            <button type="submit" name="add_facility" class="btn-book w-100">
+                                Add Facility
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="card-google h-100">
+                        <h4 class="fw-bold mb-4 rajagiri-maroon-text">Inventory</h4>
+                        <ul class="list-group list-group-flush">
+                            {% for facility in facilities %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center border-bottom py-3 px-0">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle-fill text-success me-3"></i>
+                                    <span class="fw-bold">{{ facility.name }}</span>
+                                </div>
+                                <span class="badge bg-light text-secondary rounded-pill border">
+                                    {{ facility.spaces.count }} Spaces
+                                </span>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item text-center text-muted py-5 border-0">
+                                No facilities found. Add one on the left.
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

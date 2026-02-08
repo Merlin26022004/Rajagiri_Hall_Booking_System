@@ -123,99 +123,75 @@ main {
 .footer p { margin: 0; }
 
 /* ========================================================== */
-/* NEW GOOGLE MATERIAL DESIGN (Timetable & Bus Pages)       */
+/* NEW RESOURCE MANAGEMENT STYLES (Optimized for Scaling)   */
 /* ========================================================== */
 
-/* 1. The Card: Clean, White, Soft Shadow */
+/* 1. The Card: Compacted Padding */
 .card-google {
     background: #ffffff;
-    border-radius: 16px; /* Google-style rounding */
-    border: 1px solid #e0e0e0; /* Very subtle border */
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05); /* Soft, expensive looking shadow */
-    padding: 40px;
+    border-radius: 12px; /* Slightly tighter radius */
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+    padding: 24px; /* REDUCED from 40px to 24px for better scaling */
     transition: all 0.3s ease;
+    height: 100%; /* Ensure full height alignment */
 }
 
-/* 2. The Inputs: Taller, softer borders */
+/* 2. The Inputs: Compacted Height */
 .form-control-material {
     background-color: #fff;
-    border: 1px solid #dadce0; /* Google Input Gray */
-    border-radius: 8px;
-    height: 52px; /* Taller inputs feel more elegant */
-    padding: 10px 16px;
-    font-size: 1rem;
+    border: 1px solid #dadce0;
+    border-radius: 6px; /* Tighter radius */
+    height: 42px; /* REDUCED from 52px to 42px */
+    padding: 8px 12px;
+    font-size: 0.95rem; /* Slightly smaller font */
     color: #3c4043;
     transition: border 0.2s, box-shadow 0.2s;
 }
 
 .form-control-material:focus {
     border-color: var(--rajagiri-green);
-    box-shadow: 0 0 0 4px rgba(0, 125, 49, 0.1); /* Soft green glow */
+    box-shadow: 0 0 0 3px rgba(0, 125, 49, 0.1);
     outline: none;
 }
 
-/* 3. The Labels: Distinct hierarchy */
+/* 3. The Labels: Tighter Spacing */
 .label-material {
     display: block;
     font-size: 0.75rem;
     font-weight: 700;
-    color: #5f6368; /* Google Label Gray */
+    color: #5f6368;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 8px;
+    margin-bottom: 4px; /* REDUCED margin */
 }
 
-/* 4. Section Dividers */
-.section-divider {
-    border-top: 1px solid #f1f3f4;
-    margin: 30px 0;
-}
-
-/* 5. The "Generate" Button */
-.btn-google {
-    background-color: var(--rajagiri-green);
-    color: white;
-    height: 52px;
-    border-radius: 26px; /* Pill shape */
-    font-weight: 600;
-    font-size: 1rem;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-    transition: all 0.2s;
-}
-
-.btn-google:hover {
-    background-color: var(--rajagiri-maroon);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-    color: white;
-    transform: translateY(-1px);
-}
-
+/* 4. Modern Input Group: Compacted */
 .modern-input-group {
     display: flex;
-    align-items: center; /* Vertically center icon and text */
+    align-items: center;
     background-color: #fff;
     border: 1px solid #dadce0;
-    border-radius: 8px;
-    padding: 8px 16px; /* Space inside the box */
+    border-radius: 6px;
+    padding: 6px 12px; /* REDUCED padding */
     transition: all 0.2s ease;
     overflow: hidden;
+    height: 42px; /* Match input height */
 }
 
 .modern-input-group:focus-within {
     border-color: var(--rajagiri-green);
-    box-shadow: 0 0 0 4px rgba(0, 125, 49, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 125, 49, 0.1);
 }
 
 .modern-input-icon {
     color: #9aa0a6;
-    font-size: 1.1rem;
-    margin-right: 12px;
+    font-size: 1rem;
+    margin-right: 10px;
 }
 
 .modern-input-group input, 
-.modern-input-group select, 
-.modern-input-group textarea {
+.modern-input-group select {
     border: none;
     outline: none !important;
     box-shadow: none !important;
@@ -223,14 +199,70 @@ main {
     background: transparent;
     color: #3c4043;
     font-weight: 500;
-    font-size: 1rem;
-    padding: 0; /* Remove default padding */
+    font-size: 0.95rem;
+    padding: 0;
+    margin-left: 0;
 }
 
-.modern-input-group textarea {
-    resize: none; 
+/* 5. Description Box: Scaling Fix */
+.description-group {
+    height: auto !important;
+    min-height: 100px; /* REDUCED from 120px */
+    align-items: flex-start;
+    padding-top: 10px;
 }
 
-.modern-input-group select {
-    cursor: pointer;
+.description-group textarea {
+    min-height: 80px;
+    padding-top: 0;
+    resize: none;
+    border: none;
+    outline: none;
+    width: 100%;
+}
+
+/* 6. Space List Items: Compacted */
+.space-item-row {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid var(--rajagiri-green) !important;
+    margin-bottom: 10px; /* REDUCED spacing */
+    padding: 12px !important; /* REDUCED padding */
+}
+
+.space-item-row:hover {
+    transform: translateX(3px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08) !important;
+}
+
+/* 7. Thumbnails: Smaller */
+.space-thumb img, 
+.thumb-placeholder {
+    width: 48px; /* REDUCED from 60px */
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+/* 8. Utility & Nav Overrides */
+.rajagiri-maroon-text {
+    color: var(--rajagiri-maroon);
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--rajagiri-green) !important;
+    color: white !important;
+}
+
+.nav-pills .nav-link {
+    color: #6c757d;
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    margin-right: 10px;
+    padding: 8px 20px; /* Slightly smaller tabs */
+}
+
+/* 9. Facilities Checkbox Grid */
+.facilities-container {
+    max-height: 150px;
+    overflow-y: auto; /* Scroll if too many items */
 }
