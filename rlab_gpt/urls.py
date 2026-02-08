@@ -4,14 +4,24 @@ from core import views
 
 urlpatterns = [
     # --- 1. Custom Admin Paths ---
-    path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
-    path('admin/timetable/clear/', views.clear_timetable, name='clear_timetable'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     
-    # Dashboard Actions
+    # NEW: Full History Page
+    path('admin/history/', views.booking_history, name='booking_history'),
+
+    # Timetable Management
+    path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
+    path('admin/timetable/clear/', views.clear_timetable, name='clear_timetable'),
+    
+    # Dashboard Actions (Booking Management)
     path('admin/dashboard/bookings/<int:booking_id>/approve/', views.approve_booking, name='approve_booking'),
     path('admin/dashboard/bookings/<int:booking_id>/reject/', views.reject_booking, name='reject_booking'),
     path('admin/dashboard/bookings/<int:booking_id>/cancel/', views.admin_cancel_booking, name='admin_cancel_booking'),
+
+    # Dashboard Actions (User Management)
+    path('admin/dashboard/users/<int:user_id>/assign/', views.assign_role, name='assign_role'),
+    # NEW: Reject/Delete User Action
+    path('admin/dashboard/users/<int:user_id>/reject/', views.reject_user, name='reject_user'),
 
     # --- 2. Standard Admin Path ---
     # This handles the Superuser login automatically
@@ -22,7 +32,7 @@ urlpatterns = [
     # This enables http://localhost:8000/accounts/google/login/
     path('accounts/', include('allauth.urls')),
 
-    # Custom Login Page (We will update the template for this next)
+    # Custom Login Page
     path('login/', views.login_view, name='login'),
     
     # Custom Logout
