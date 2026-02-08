@@ -1,6 +1,7 @@
 /* ================= GLOBAL LAYOUT ================= */
 html, body {
-    height: 100%;
+    /* Critical Fix: Ensures footer pushes to bottom even on short pages */
+    min-height: 100vh;
     margin: 0;
 }
 body {
@@ -11,8 +12,21 @@ body {
     color: #222;
 }
 main {
-    flex: 1;
+    /* This allows the main content to grow and push the footer down */
+    flex: 1 0 auto;
+    /* Minimal padding - just enough clearance from footer */
+    padding-bottom: 1.5rem;
 }
+.footer {
+    /* Prevents the footer from shrinking */
+    flex-shrink: 0;
+    background: var(--rajagiri-green);
+    color: #fff;
+    font-size: 14px;
+    padding: 25px 0;
+    margin-top: auto;
+}
+.footer p { margin: 0; }
 
 /* ================= COLOR VARIABLES ================= */
 :root {
@@ -65,31 +79,28 @@ main {
     font-weight: 700;
 }
 
-/* ================= CLASSIC BUTTON (Home/Spaces) ================= */
-/* UPDATED FIX: High Specificity to override Bootstrap defaults */
+/* ================= CLASSIC BUTTON ================= */
 .btn-book {
     background-color: var(--rajagiri-green) !important;
     border: none;
-    color: white !important; /* Force white text initially */
+    color: white !important;
     font-weight: 700;
     padding: 12px 25px;
     border-radius: 4px;
     transition: 0.2s;
-    text-decoration: none; /* Removes underline if Bootstrap adds it */
-}
-
-/* Grouped :hover, :focus, :active to ensure stability */
-.btn-book:hover, 
-.btn-book:focus, 
-.btn-book:active {
-    background-color: var(--rajagiri-green) !important; /* Locks BG */
-    color: white !important; /* Locks Text White */
-    filter: brightness(0.9); /* Darkens slightly for effect */
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Subtle lift */
     text-decoration: none;
 }
 
-/* ================= STANDARD CARDS (Home/Spaces) ================= */
+.btn-book:hover, 
+.btn-book:focus, 
+.btn-book:active {
+    background-color: var(--rajagiri-green) !important;
+    color: white !important;
+    filter: brightness(0.9);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* ================= STANDARD CARDS ================= */
 .space-card {
     border-radius: 12px;
     border: 2px solid rgba(0,0,0,0.06);
@@ -112,50 +123,24 @@ main {
     color: var(--rajagiri-maroon);
 }
 
-/* ================= FOOTER ================= */
-.footer {
-    background: var(--rajagiri-green);
-    color: #fff;
-    font-size: 14px;
-    padding: 25px 0;
-}
-
-.footer p { margin: 0; }
-
 /* ========================================================== */
-/* NEW RESOURCE MANAGEMENT STYLES (Optimized for Scaling)   */
+/* MATERIAL DESIGN (Restored to Stable Sizes)                */
 /* ========================================================== */
 
-/* 1. The Card: Compacted Padding */
+/* 1. The Card */
 .card-google {
     background: #ffffff;
-    border-radius: 12px; /* Slightly tighter radius */
+    border-radius: 12px;
     border: 1px solid #e0e0e0;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
-    padding: 24px; /* REDUCED from 40px to 24px for better scaling */
+    padding: 30px;
     transition: all 0.3s ease;
-    height: 100%; /* Ensure full height alignment */
+    /* REMOVED: height: 100%; - This was causing the footer overlap */
+    /* Optimized bottom margin - just enough to clear footer */
+    margin-bottom: 2rem;
 }
 
-/* 2. The Inputs: Compacted Height */
-.form-control-material {
-    background-color: #fff;
-    border: 1px solid #dadce0;
-    border-radius: 6px; /* Tighter radius */
-    height: 42px; /* REDUCED from 52px to 42px */
-    padding: 8px 12px;
-    font-size: 0.95rem; /* Slightly smaller font */
-    color: #3c4043;
-    transition: border 0.2s, box-shadow 0.2s;
-}
-
-.form-control-material:focus {
-    border-color: var(--rajagiri-green);
-    box-shadow: 0 0 0 3px rgba(0, 125, 49, 0.1);
-    outline: none;
-}
-
-/* 3. The Labels: Tighter Spacing */
+/* 2. The Labels */
 .label-material {
     display: block;
     font-size: 0.75rem;
@@ -163,20 +148,20 @@ main {
     color: #5f6368;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 4px; /* REDUCED margin */
+    margin-bottom: 6px;
 }
 
-/* 4. Modern Input Group: Compacted */
+/* 3. Modern Input Group (STABLE) */
 .modern-input-group {
     display: flex;
     align-items: center;
     background-color: #fff;
     border: 1px solid #dadce0;
-    border-radius: 6px;
-    padding: 6px 12px; /* REDUCED padding */
+    border-radius: 8px;
+    padding: 0 12px; 
     transition: all 0.2s ease;
     overflow: hidden;
-    height: 42px; /* Match input height */
+    height: 50px;
 }
 
 .modern-input-group:focus-within {
@@ -186,8 +171,9 @@ main {
 
 .modern-input-icon {
     color: #9aa0a6;
-    font-size: 1rem;
-    margin-right: 10px;
+    font-size: 1.1rem;
+    margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .modern-input-group input, 
@@ -199,34 +185,35 @@ main {
     background: transparent;
     color: #3c4043;
     font-weight: 500;
-    font-size: 0.95rem;
+    font-size: 1rem;
     padding: 0;
-    margin-left: 0;
+    height: 100%;
 }
 
-/* 5. Description Box: Scaling Fix */
+/* 4. Description Box Override */
 .description-group {
     height: auto !important;
-    min-height: 100px; /* REDUCED from 120px */
+    min-height: 120px;
     align-items: flex-start;
-    padding-top: 10px;
+    padding: 12px;
 }
 
 .description-group textarea {
-    min-height: 80px;
-    padding-top: 0;
+    min-height: 100px;
     resize: none;
     border: none;
     outline: none;
     width: 100%;
+    padding: 0;
+    margin-top: 2px;
 }
 
-/* 6. Space List Items: Compacted */
+/* 5. Space List Items (Compact View) */
 .space-item-row {
     transition: transform 0.2s, box-shadow 0.2s;
     border-left: 4px solid var(--rajagiri-green) !important;
-    margin-bottom: 10px; /* REDUCED spacing */
-    padding: 12px !important; /* REDUCED padding */
+    margin-bottom: 12px;
+    padding: 12px !important;
 }
 
 .space-item-row:hover {
@@ -234,16 +221,71 @@ main {
     box-shadow: 0 4px 10px rgba(0,0,0,0.08) !important;
 }
 
-/* 7. Thumbnails: Smaller */
+/* 6. Thumbnails */
 .space-thumb img, 
 .thumb-placeholder {
-    width: 48px; /* REDUCED from 60px */
-    height: 48px;
+    width: 50px;
+    height: 50px;
     object-fit: cover;
     border-radius: 6px;
 }
 
-/* 8. Utility & Nav Overrides */
+/* 7. Facilities Container (Scrollable) */
+.facilities-container {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef !important;
+}
+
+/* FIXED: Simple checkbox alignment */
+.facilities-container .form-check {
+    margin-bottom: 0;
+    padding-left: 0;
+}
+
+.facilities-container .form-check-input {
+    margin-top: 0;
+    margin-right: 0;
+    float: none;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.facilities-container .form-check-label {
+    font-size: 0.9rem;
+    color: #3c4043;
+    cursor: pointer;
+    padding-top: 1px; /* Fine-tune vertical alignment */
+}
+
+/* 7b. File Input Alignment Fix */
+.modern-input-group input[type="file"] {
+    padding: 0;
+    height: auto;
+    line-height: normal;
+    display: flex;
+    align-items: center;
+}
+
+.modern-input-group input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    border: 1px solid #dadce0;
+    background: #f8f9fa;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #3c4043;
+    transition: background 0.2s;
+}
+
+.modern-input-group input[type="file"]::file-selector-button:hover {
+    background: #e9ecef;
+}
+
+/* 8. Utilities */
 .rajagiri-maroon-text {
     color: var(--rajagiri-maroon);
 }
@@ -258,11 +300,64 @@ main {
     background-color: white;
     border: 1px solid #e0e0e0;
     margin-right: 10px;
-    padding: 8px 20px; /* Slightly smaller tabs */
+    padding: 8px 20px;
 }
 
-/* 9. Facilities Checkbox Grid */
-.facilities-container {
-    max-height: 150px;
-    overflow-y: auto; /* Scroll if too many items */
+.section-divider {
+    border-top: 1px solid #f1f3f4;
+    margin: 30px 0;
+}
+
+.btn-google {
+    background-color: var(--rajagiri-green);
+    color: white;
+    height: 50px;
+    border-radius: 25px;
+    font-weight: 600;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.btn-google:hover {
+    background-color: var(--rajagiri-maroon);
+    color: white;
+}
+
+/* 9. Danger Card INSIDE Main Card - COMPACT DESIGN */
+.card-danger-inner {
+    background-color: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    padding: 16px;
+    transition: 0.2s;
+    margin-top: 0;
+}
+
+.card-danger-inner:hover {
+    border-color: #fc8181;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.08);
+}
+
+/* Keep old card-danger for backwards compatibility */
+.card-danger {
+    background-color: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 12px;
+    padding: 20px;
+    transition: 0.2s;
+}
+
+.card-danger:hover {
+    border-color: #fc8181;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.1);
+}
+
+.modern-input-group.border-danger {
+    border-color: #feb2b2 !important;
+    background-color: #fff;
+}
+
+.modern-input-group.border-danger:focus-within {
+    border-color: #e53e3e !important;
+    box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1) !important;
 }
