@@ -3,7 +3,6 @@ from datetime import timedelta, date
 from django.contrib import messages
 from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
-# 1. RESTORED THIS IMPORT FOR MANUAL LOGIN
 from django.contrib.auth.forms import AuthenticationForm 
 from django.contrib.auth.models import User, Group
 from django.db.models import Q
@@ -13,18 +12,25 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.views.decorators.http import require_GET
 from django.core.mail import send_mail
+from django.core.paginator import Paginator 
 from django.conf import settings
 
 # === IMPORTS ===
 from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking, Facility
-# 2. IMPORT THE NEW DECORATOR
 from .decorators import approval_required
 
 # ================= Helpers =================
 
-def is_admin_user(user):
-    """Who can see the custom admin dashboard & approve bookings."""
-    return user.is_staff or user.is_superuser
+def is_dashboard_authorized(user):
+    """
+    Access Control for Admin Dashboard.
+    Allows access to:
+    1. Superusers
+    2. Users in 'Faculty' or 'Admin' groups
+    """
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=['Faculty', 'Admin']).exists()
 
 def is_transport_officer(user):
     """Check if user belongs to the 'Transport' group."""
@@ -33,12 +39,10 @@ def is_transport_officer(user):
 def send_notification_email(subject, message, recipients, context_type="hall"):
     """
     Sends email with dynamic sender name based on context.
-    context_type: 'hall' (default) or 'bus'
     """
     if not recipients:
         return
 
-    # Dynamic Sender Name Logic
     sender_email = settings.EMAIL_HOST_USER
     if context_type == "hall":
         from_email = f"Rajagiri Facility Management <{sender_email}>"
@@ -49,11 +53,7 @@ def send_notification_email(subject, message, recipients, context_type="hall"):
 
     try:
         send_mail(
-            subject,
-            message,
-            from_email,
-            recipients,
-            fail_silently=True, # Keeps app running even if email fails
+            subject, message, from_email, recipients, fail_silently=True
         )
     except Exception as e:
         print(f"Email Error: {e}")
@@ -63,7 +63,6 @@ def send_notification_email(subject, message, recipients, context_type="hall"):
 def home(request):
     """Homepage with hero + personalized snapshot stats."""
     
-    # === SMART REDIRECT ===
     # If Transport Officer logs in, send them straight to Bus Dashboard.
     if request.user.is_authenticated and is_transport_officer(request.user):
         return redirect('bus_list')
@@ -71,15 +70,14 @@ def home(request):
     spaces = Space.objects.all()[:6]
     today = timezone.localdate()
     
-    # Default stats
     today_total = 0
     pending = 0
     week_approved = 0
     blocked = BlockedDate.objects.filter(date__gte=today).count()
 
     if request.user.is_authenticated:
-        if request.user.is_staff:
-            # === ADMIN VIEW: GLOBAL ACTIVITY ===
+        if request.user.is_staff or is_dashboard_authorized(request.user):
+            # ADMIN VIEW
             today_total = Booking.objects.filter(date=today).count()
             pending = Booking.objects.filter(status=Booking.STATUS_PENDING).count()
             week_approved = Booking.objects.filter(
@@ -87,7 +85,7 @@ def home(request):
                 date__range=[today, today + timedelta(days=6)]
             ).count()
         else:
-            # === STUDENT VIEW: PERSONAL ACTIVITY ===
+            # STUDENT VIEW
             today_total = Booking.objects.filter(requested_by=request.user, date=today).count()
             pending = Booking.objects.filter(requested_by=request.user, status=Booking.STATUS_PENDING).count()
             week_approved = Booking.objects.filter(
@@ -130,11 +128,9 @@ def space_availability(request, space_id):
 # ================= Booking Logic =================
 
 @login_required
-@approval_required # 3. BLOCKS UNAUTHORIZED USERS FROM BOOKING
+@approval_required
 def book_space(request):
     spaces = Space.objects.all()
-    
-    # === NEW: Fetch all facilities (fallback) ===
     facilities = Facility.objects.all()
     
     selected_space_id = request.GET.get("space_id")
@@ -153,20 +149,15 @@ def book_space(request):
         end_time_str = request.POST.get("end_time")
         expected_count = request.POST.get("expected_count")
         purpose = request.POST.get("purpose")
-        
-        # Capture Faculty Name for Student Bookings
         faculty_name = request.POST.get("faculty_in_charge")
-        
-        # === NEW: Get the list of selected facility IDs ===
         selected_facility_ids = request.POST.getlist("facilities")
 
         if not all([space_id, date_str, start_time_str, end_time_str, expected_count, purpose]):
             messages.error(request, "Please fill all required fields.")
             return redirect("book_space")
 
-        # Validation: Students MUST provide a Faculty Name
         if not request.user.is_staff and not faculty_name:
-            messages.error(request, "Students must specify the Faculty In-Charge who approved this.")
+            messages.error(request, "Students must specify the Faculty In-Charge.")
             return redirect("book_space")
 
         space = get_object_or_404(Space, id=space_id)
@@ -205,12 +196,10 @@ def book_space(request):
             messages.error(request, "Time slot conflicts with an existing booking.")
             return redirect("book_space")
 
-        # === 2. SMART LOGIC: Auto-Approve for EVERYONE ===
+        # Auto-Approve Logic
         booking_status = Booking.STATUS_APPROVED
-        
         approver = request.user if request.user.is_staff else None
 
-        # Create the Booking object first
         booking = Booking.objects.create(
             space=space, requested_by=request.user, date=d,
             start_time=st, end_time=et,
@@ -219,65 +208,49 @@ def book_space(request):
             faculty_in_charge=faculty_name
         )
         
-        # === NEW: Save the requested facilities to the booking ===
         if selected_facility_ids:
             booking.requested_facilities.set(selected_facility_ids)
 
-        # === 3. SMART NOTIFICATIONS ===
-        
-        # Identify Real Admins (Superusers) to receive alerts
+        # Notifications
         facility_admins = User.objects.filter(is_superuser=True).exclude(id=request.user.id)
         admin_emails = [u.email for u in facility_admins if u.email]
         
-        # Calculate formatted facilities string for email
         facility_msg = ""
         if selected_facility_ids:
             names = [f.name for f in Facility.objects.filter(id__in=selected_facility_ids)]
             facility_msg = "\nFacilities Requested: " + ", ".join(names)
 
         if request.user.is_staff:
-            # === A. STAFF/FACULTY BOOKING ===
-            
-            # 1. Send Confirmation to the Booker (Faculty)
             if request.user.email:
                 send_notification_email(
                     subject="Booking Confirmed",
-                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} has been successfully confirmed.\n\nTime: {st} to {et}\nPurpose: {purpose}{facility_msg}",
+                    message=f"Dear {request.user.username},\n\nConfirmed for {space.name} on {d}.\nPurpose: {purpose}{facility_msg}",
                     recipients=[request.user.email],
                     context_type="hall"
                 )
-            
-            # 2. Alert Admins
             if admin_emails:
                 send_notification_email(
                     subject=f"New Booking Alert: {space.name}",
-                    message=f"ALERT: {space.name} has been booked by {request.user.username} (Faculty).\n\nDate: {d}\nTime: {st} to {et}\nPurpose: {purpose}{facility_msg}",
+                    message=f"ALERT: {space.name} booked by {request.user.username} (Faculty).{facility_msg}",
                     recipients=admin_emails,
                     context_type="hall"
                 )
-
         else:
-            # === B. STUDENT BOOKING ===
-            
-            # 1. Send Confirmation to Student
             if request.user.email:
                 send_notification_email(
                     subject="Booking Confirmed",
-                    message=f"Dear {request.user.username},\n\nYour booking for {space.name} on {d} is CONFIRMED.\n\nFaculty In-Charge: {faculty_name}\nTime: {st} to {et}{facility_msg}",
+                    message=f"Dear {request.user.username},\n\nConfirmed for {space.name} on {d}.\nFaculty Ref: {faculty_name}{facility_msg}",
                     recipients=[request.user.email],
                     context_type="hall"
                 )
-            
-            # 2. Alert Admins
             if admin_emails:
                 send_notification_email(
                     subject=f"New Booking Alert: {space.name}",
-                    message=f"ALERT: {space.name} has been booked by Student {request.user.username}.\n\nReferenced Faculty: {faculty_name}\nStatus: Auto-Approved{facility_msg}",
+                    message=f"ALERT: {space.name} booked by Student {request.user.username}.\nFaculty Ref: {faculty_name}{facility_msg}",
                     recipients=admin_emails,
                     context_type="hall"
                 )
 
-        # In-App Notifications for Admins
         for admin in facility_admins:
             Notification.objects.create(
                 user=admin,
@@ -287,7 +260,6 @@ def book_space(request):
         messages.success(request, "Booking confirmed successfully.")
         return redirect("my_bookings")
 
-    # Pass facilities to the template
     return render(request, "booking_form.html", {
         "spaces": spaces, 
         "selected_space": selected_space,
@@ -308,21 +280,16 @@ def cancel_booking(request, booking_id):
         booking.save()
         messages.success(request, "Booking cancelled.")
         
-        # === NOTIFICATION LOGIC ===
-        
-        # 1. Find ALL Superusers (Facility Admins)
         facility_admins = User.objects.filter(is_superuser=True)
         admin_emails = [u.email for u in facility_admins if u.email]
         
-        # 2. Send Email to ALL of them
         send_notification_email(
             subject=f"Cancelled: {booking.space.name} on {booking.date}",
-            message=f"FYI: {request.user.username} has CANCELLED their booking for {booking.space.name}.\n\nDate: {booking.date}\nTime: {booking.start_time}",
+            message=f"FYI: {request.user.username} has CANCELLED their booking.",
             recipients=admin_emails,
             context_type="hall"
         )
 
-        # 3. In-App Notification for ALL of them
         for admin in facility_admins:
             Notification.objects.create(
                 user=admin,
@@ -331,29 +298,43 @@ def cancel_booking(request, booking_id):
 
     return redirect("my_bookings")
 
-# ================= Admin Dashboard (Hall Booking) =================
+# ================= Admin Dashboard (OPERATIONAL) =================
 
-@user_passes_test(is_admin_user)
+@user_passes_test(is_dashboard_authorized)
 def admin_dashboard(request):
-    qs = Booking.objects.select_related("space", "requested_by")
-    
-    if request.GET.get("status"): qs = qs.filter(status=request.GET.get("status"))
-    if request.GET.get("space_id"): qs = qs.filter(space_id=request.GET.get("space_id"))
-    if request.GET.get("date"): qs = qs.filter(date=request.GET.get("date"))
-
-    bookings = qs.order_by("-date", "start_time")
-    
+    """
+    Operational Dashboard: Shows only ACTIONABLE items & Immediate Upcoming.
+    1. Pending Bookings (Work Queue)
+    2. Waiting Room (User Queue)
+    3. Upcoming Approved Bookings (Operational Awareness - Next 7 Days)
+    """
     today = timezone.localdate()
+    next_week = today + timedelta(days=7)
+
+    # 1. WAITING ROOM (Users without groups)
+    waiting_users = User.objects.filter(groups__isnull=True, is_active=True).exclude(is_superuser=True)
+
+    # 2. PENDING BOOKINGS ONLY (Work Queue)
+    pending_bookings = Booking.objects.filter(status=Booking.STATUS_PENDING).select_related("space", "requested_by").order_by("date", "start_time")
+
+    # 3. UPCOMING SCHEDULE (Approved Bookings: Today -> +7 Days)
+    upcoming_bookings = Booking.objects.filter(
+        status=Booking.STATUS_APPROVED, 
+        date__range=[today, next_week]
+    ).select_related("space", "requested_by").order_by("date", "start_time")
+
     stats = {
         "today_total": Booking.objects.filter(date=today).count(),
-        "pending": Booking.objects.filter(status=Booking.STATUS_PENDING).count(),
+        "pending": pending_bookings.count(),
         "week_approved": Booking.objects.filter(
             status=Booking.STATUS_APPROVED,
-            date__gte=today - timedelta(days=today.weekday())
+            date__range=[today, today + timedelta(days=6)]
         ).count(),
         "blocked": BlockedDate.objects.count(),
+        "waiting_users_count": waiting_users.count()
     }
 
+    # Charts
     chart_spaces = Space.objects.all()
     space_names = [s.name for s in chart_spaces]
     booking_counts = [
@@ -362,12 +343,81 @@ def admin_dashboard(request):
     ]
 
     return render(request, "admin_dashboard.html", {
-        "bookings": bookings, "stats": stats, "all_spaces": chart_spaces,
+        "bookings": pending_bookings, # Pending Only
+        "upcoming_bookings": upcoming_bookings, # Next 7 Days Only
+        "stats": stats, 
+        "all_spaces": chart_spaces,
+        "waiting_users": waiting_users,
         "space_names_json": json.dumps(space_names),
         "booking_counts_json": json.dumps(booking_counts),
     })
 
-@user_passes_test(is_admin_user)
+# ================= Admin History (ANALYTICAL) =================
+
+@user_passes_test(is_dashboard_authorized)
+def booking_history(request):
+    """
+    Full History Page with Filtering and Pagination.
+    """
+    qs = Booking.objects.select_related("space", "requested_by").order_by("-date", "-start_time")
+    
+    # Filters
+    status = request.GET.get("status")
+    space_id = request.GET.get("space_id")
+    date_val = request.GET.get("date")
+
+    if status: qs = qs.filter(status=status)
+    if space_id: qs = qs.filter(space_id=space_id)
+    if date_val: qs = qs.filter(date=date_val)
+
+    # Pagination (Show 20 per page)
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    spaces = Space.objects.all()
+
+    return render(request, "booking_history.html", {
+        "page_obj": page_obj,
+        "spaces": spaces,
+    })
+
+# ================= Admin Actions =================
+
+@user_passes_test(is_dashboard_authorized)
+def assign_role(request, user_id):
+    """Assigns a 'Waiting Room' user to a Group."""
+    if request.method == "POST":
+        target_user = get_object_or_404(User, id=user_id)
+        role = request.POST.get("role")
+        
+        if role in ['Faculty', 'Student Rep']:
+            group, _ = Group.objects.get_or_create(name=role)
+            target_user.groups.add(group)
+            messages.success(request, f"Successfully assigned {target_user.username} to {role}.")
+        else:
+            messages.error(request, "Invalid role selected.")
+            
+    return redirect("admin_dashboard")
+
+@user_passes_test(is_dashboard_authorized)
+def reject_user(request, user_id):
+    """
+    Deletes a user who is in the Waiting Room (Spam/Unauthorized).
+    """
+    if request.method == "POST":
+        user_to_delete = get_object_or_404(User, id=user_id)
+        # Security: Only delete if they have NO groups (Waiting Room check)
+        if not user_to_delete.groups.exists() and not user_to_delete.is_superuser:
+            username = user_to_delete.username
+            user_to_delete.delete()
+            messages.success(request, f"User {username} has been removed.")
+        else:
+            messages.error(request, "Cannot delete active Faculty/Staff users from here.")
+            
+    return redirect("admin_dashboard")
+
+@user_passes_test(is_dashboard_authorized)
 def approve_booking(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
     if request.method == "POST" and booking.status == Booking.STATUS_PENDING:
@@ -375,17 +425,15 @@ def approve_booking(request, booking_id):
         booking.approved_by = request.user
         booking.save()
         
-        # In-App
         Notification.objects.create(
             user=booking.requested_by,
             message=f"APPROVED: Your booking for {booking.space.name} on {booking.date} is confirmed."
         )
 
-        # Email Notification
         if booking.requested_by.email:
             send_notification_email(
                 subject="Booking Approved",
-                message=f"Good news! Your booking for {booking.space.name} on {booking.date} has been APPROVED.",
+                message=f"Good news! Your booking for {booking.space.name} has been APPROVED.",
                 recipients=[booking.requested_by.email],
                 context_type="hall"
             )
@@ -393,7 +441,7 @@ def approve_booking(request, booking_id):
         messages.success(request, "Booking approved.")
     return redirect("admin_dashboard")
 
-@user_passes_test(is_admin_user)
+@user_passes_test(is_dashboard_authorized)
 def reject_booking(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
     if request.method == "POST" and booking.status == Booking.STATUS_PENDING:
@@ -401,17 +449,15 @@ def reject_booking(request, booking_id):
         booking.approved_by = request.user
         booking.save()
         
-        # In-App
         Notification.objects.create(
             user=booking.requested_by,
             message=f"REJECTED: Your booking for {booking.space.name} on {booking.date} was declined."
         )
 
-        # Email Notification
         if booking.requested_by.email:
             send_notification_email(
                 subject="Booking Request Declined",
-                message=f"We regret to inform you that your request for {booking.space.name} on {booking.date} has been REJECTED.",
+                message=f"We regret to inform you that your request for {booking.space.name} has been REJECTED.",
                 recipients=[booking.requested_by.email],
                 context_type="hall"
             )
@@ -419,17 +465,15 @@ def reject_booking(request, booking_id):
         messages.success(request, "Booking rejected.")
     return redirect("admin_dashboard")
 
-@user_passes_test(is_admin_user)
+@user_passes_test(is_dashboard_authorized)
 def admin_cancel_booking(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
     if request.method == "POST":
         booking.status = Booking.STATUS_CANCELLED
         booking.save()
         
-        # === UPDATED: NOTIFY USER (EMAIL + IN-APP) ===
+        # Notify User
         if booking.requested_by != request.user:
-            
-            # 1. Send Email to User
             if booking.requested_by.email:
                 send_notification_email(
                     subject=f"IMPORTANT: Booking Cancelled by Admin",
@@ -438,14 +482,15 @@ def admin_cancel_booking(request, booking_id):
                     context_type="hall"
                 )
 
-            # 2. In-App Notification
             Notification.objects.create(
                 user=booking.requested_by,
                 message=f"CANCELLED: Admin cancelled your booking for {booking.space.name}."
             )
             
         messages.success(request, "Booking cancelled.")
-    return redirect("admin_dashboard")
+        
+    # Redirect back to where the user came from (Dashboard OR History)
+    return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
 
 # ================= API & Calendar =================
 
@@ -462,7 +507,6 @@ def api_unavailable_dates(request):
     
     return JsonResponse([d.isoformat() for d in blocked], safe=False)
 
-# === NEW: API for specific Space Facilities ===
 @require_GET
 @login_required
 def api_space_facilities(request):
@@ -472,7 +516,6 @@ def api_space_facilities(request):
         return JsonResponse([], safe=False)
     
     space = get_object_or_404(Space, id=space_id)
-    # Get the facilities linked to this space in the Admin panel
     facilities = space.facilities.all().values("id", "name")
     
     return JsonResponse(list(facilities), safe=False)
@@ -510,26 +553,21 @@ def api_bookings(request):
 
 @login_required
 def mark_notification_read(request, notif_id):
-    """Marks notification read and redirects to the right page."""
     notif = get_object_or_404(Notification, id=notif_id, user=request.user)
     notif.is_read = True
     notif.save()
     
-    # === SMART REDIRECT ===
-    if request.user.is_staff:
-        # Check if it's a Bus Notification
+    if request.user.is_staff or is_dashboard_authorized(request.user):
         if "BUS" in notif.message or "Bus" in notif.message:
             return redirect('bus_list')
         return redirect('admin_dashboard')
     else:
-        # Students: Check if Bus
         if "BUS" in notif.message or "Bus" in notif.message:
             return redirect('bus_list')
         return redirect('my_bookings')
 
 @login_required
 def notification_list(request):
-    """View all notifications (read and unread)."""
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'notifications.html', {'notifications': notifications})
 
@@ -537,23 +575,19 @@ def logout_view(request):
     logout(request)
     return redirect("home")
 
-# ================= BUS SYSTEM (Updated) =================
+# ================= BUS SYSTEM =================
 
 @login_required
 def bus_list(request):
     is_officer = is_transport_officer(request.user)
     
-    # === UPDATED LOGIC FOR TRANSPORT OFFICER ===
     if is_officer:
-        # Transport Officer sees EVERYONE'S bookings
         bookings = BusBooking.objects.all().order_by('-date')
     else:
-        # Regular users see ONLY their own bookings
         bookings = BusBooking.objects.filter(requested_by=request.user).order_by('-date')
     
     buses = Bus.objects.all()
     
-    # We pass 'is_transport_officer' to template so we can show/hide buttons
     return render(request, "bus_list.html", {
         "bookings": bookings, 
         "buses": buses,
@@ -561,7 +595,7 @@ def bus_list(request):
     })
 
 @login_required
-@approval_required # 4. BLOCKS UNAUTHORIZED USERS FROM BOOKING BUSES
+@approval_required
 def book_bus(request):
     buses = Bus.objects.all()
     if request.method == "POST":
@@ -573,7 +607,6 @@ def book_bus(request):
         destination = request.POST.get("destination")
         purpose = request.POST.get("purpose")
         
-        # Simple Validation
         if not all([bus_id, date_str, start_time, end_time, origin, destination]):
             messages.error(request, "Please fill all fields")
             return redirect("book_bus")
@@ -587,35 +620,31 @@ def book_bus(request):
             origin=origin,
             destination=destination,
             purpose=purpose,
-            status='Pending' # Buses always pending for Transport Admin
+            status='Pending'
         )
         
-        # Notify Admin (Transport Officer)
         officers = User.objects.filter(groups__name='Transport')
         officer_emails = [u.email for u in officers if u.email]
 
-        # 1. Email to Transport Officers
         send_notification_email(
             subject=f"New Bus Request: {origin} to {destination}",
-            message=f"User {request.user.username} requested a bus on {date_str}.\nRoute: {origin} -> {destination}\nPurpose: {purpose}",
+            message=f"User {request.user.username} requested a bus on {date_str}.\nRoute: {origin} -> {destination}",
             recipients=officer_emails,
-            context_type="bus"  # <--- Triggers "Rajagiri Transport Officer" sender name
+            context_type="bus"
         )
 
-        # 2. Confirmation Email to Student
         if request.user.email:
             send_notification_email(
                 subject="Bus Request Received",
-                message=f"Dear {request.user.username},\n\nYour bus request for {date_str} ({origin} to {destination}) has been received.",
+                message=f"Dear {request.user.username},\n\nYour bus request has been received.",
                 recipients=[request.user.email],
                 context_type="bus"
             )
 
-        # In-App Notification
         for officer in officers:
             Notification.objects.create(
                 user=officer, 
-                message=f"New BUS Request: {request.user.username} from {origin} to {destination} on {date_str}"
+                message=f"New BUS Request: {request.user.username}"
             )
             
         messages.success(request, "Bus request submitted to Transport Officer.")
@@ -623,7 +652,7 @@ def book_bus(request):
         
     return render(request, "book_bus.html", {"buses": buses})
 
-# === NEW: TRANSPORT OFFICER ACTIONS ===
+# === TRANSPORT OFFICER ACTIONS ===
 
 @user_passes_test(is_transport_officer)
 def approve_bus_booking(request, booking_id):
@@ -637,7 +666,6 @@ def approve_bus_booking(request, booking_id):
             message=f"BUS APPROVED: Your trip to {booking.destination} is confirmed."
         )
 
-        # Email Notification
         if booking.requested_by.email:
             send_notification_email(
                 subject="Bus Booking Approved",
@@ -661,7 +689,6 @@ def reject_bus_booking(request, booking_id):
             message=f"BUS REJECTED: Your trip to {booking.destination} was declined."
         )
 
-        # Email Notification
         if booking.requested_by.email:
             send_notification_email(
                 subject="Bus Booking Rejected",
@@ -673,55 +700,44 @@ def reject_bus_booking(request, booking_id):
         messages.success(request, "Bus booking rejected.")
     return redirect("bus_list")
 
-# === NEW: CANCEL BUS BOOKING ===
 @login_required
 def cancel_bus_booking(request, booking_id):
     booking = get_object_or_404(BusBooking, id=booking_id)
     is_officer = is_transport_officer(request.user)
     is_owner = booking.requested_by == request.user
 
-    # SECURITY CHECK: Only Owner or Transport Officer can cancel
     if not (is_owner or is_officer):
         messages.error(request, "You do not have permission to cancel this booking.")
         return redirect("bus_list")
 
     if request.method == "POST":
-        # 1. Update Status (Soft Delete)
         booking.status = BusBooking.STATUS_CANCELLED
         booking.save()
 
-        # 2. NOTIFICATION LOGIC
-        
-        # Scenario A: Student Cancels -> Notify Transport Officer
+        # Notify based on who cancelled
         if is_owner and not is_officer:
             officers = User.objects.filter(groups__name='Transport')
             officer_emails = [u.email for u in officers if u.email]
-            
-            # Email Officer
             send_notification_email(
                 subject=f"Bus Trip Cancelled: {booking.destination}",
-                message=f"FYI: {request.user.username} has CANCELLED their bus request to {booking.destination} on {booking.date}.",
+                message=f"FYI: {request.user.username} has CANCELLED their bus request.",
                 recipients=officer_emails,
                 context_type="bus"
             )
-            # In-App for Officer
             for officer in officers:
                 Notification.objects.create(
                     user=officer,
-                    message=f"CANCELLED: {request.user.username} cancelled bus to {booking.destination}"
+                    message=f"CANCELLED: {request.user.username} cancelled bus."
                 )
 
-        # Scenario B: Transport Officer Cancels -> Notify Student
         elif is_officer:
-            # Email Student
             if booking.requested_by.email:
                 send_notification_email(
                     subject="Bus Trip Cancelled by Officer",
-                    message=f"Important: The Transport Officer has cancelled your bus trip to {booking.destination} on {booking.date}.",
+                    message=f"Important: The Transport Officer has cancelled your bus trip.",
                     recipients=[booking.requested_by.email],
                     context_type="bus"
                 )
-            # In-App for Student
             Notification.objects.create(
                 user=booking.requested_by,
                 message=f"ALERT: Officer cancelled your bus to {booking.destination}"
@@ -733,14 +749,13 @@ def cancel_bus_booking(request, booking_id):
 
 # ================= TIMETABLE AUTOMATION =================
 
-@user_passes_test(is_admin_user)
+@user_passes_test(is_dashboard_authorized)
 def upload_timetable(request):
     spaces = Space.objects.all()
     
     if request.method == "POST":
         space_id = request.POST.get("space_id")
         day_of_week = int(request.POST.get("day_of_week"))
-        
         expected_count = request.POST.get("expected_count") or 0
         
         start_custom = request.POST.get("start_time_custom")
@@ -758,7 +773,6 @@ def upload_timetable(request):
         subject = request.POST.get("subject")
 
         space = get_object_or_404(Space, id=space_id)
-        
         current_date = sem_start
         booking_count = 0
         
@@ -782,7 +796,6 @@ def upload_timetable(request):
                         expected_count=expected_count
                     )
                     booking_count += 1
-            
             current_date += timedelta(days=1)
             
         messages.success(request, f"Success! Generated {booking_count} bookings for {subject}.")
@@ -790,18 +803,15 @@ def upload_timetable(request):
 
     return render(request, "upload_timetable.html", {"spaces": spaces})
 
-# === CLEAR TIMETABLE (Bulk Delete) ===
-@user_passes_test(is_admin_user)
+@user_passes_test(is_dashboard_authorized)
 def clear_timetable(request):
     if request.method == "POST":
         subject_name = request.POST.get("subject_name")
-        
         if not subject_name:
             messages.error(request, "Subject name is required.")
             return redirect("upload_timetable")
 
         today = timezone.localdate()
-        
         targets = Booking.objects.filter(
             purpose__iexact=f"TIMETABLE: {subject_name}",
             date__gte=today,
@@ -809,44 +819,35 @@ def clear_timetable(request):
         )
         
         count = targets.count()
-        
         if count > 0:
             targets.delete()
             messages.success(request, f"Successfully deleted {count} future bookings for '{subject_name}'.")
         else:
-            messages.warning(request, f"No future bookings found for subject '{subject_name}'. Check spelling!")
+            messages.warning(request, f"No future bookings found.")
             
     return redirect("upload_timetable")
 
-# === 5. HYBRID LOGIN VIEW (FIXED) ===
+# ================= LOGIN =================
+
 def login_view(request):
-    """
-    Handles TWO types of login:
-    1. Google OAuth (handled by Allauth URLs in template).
-    2. Manual Username/Password (handled here for your test accounts).
-    """
     if request.user.is_authenticated:
         return redirect("home")
 
     if request.method == "POST":
-        # Handle manual login for test accounts
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
             
-            # 1. Transport Officers check
             if is_transport_officer(user):
                 return redirect('bus_list')
             
-            # 2. SAFE Redirect Logic
             next_url = request.POST.get('next')
             if not next_url:
                 next_url = 'home'
             
             return redirect(next_url)
     else:
-        # Just render the page (template has the Google Link)
         form = AuthenticationForm()
     
     return render(request, "login.html", {"form": form})

@@ -6,7 +6,7 @@
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5">
         <div>
             <h2 class="fw-bold mb-1 text-dark">Admin Dashboard</h2>
-            <p class="text-muted small mb-0">Manage bookings and view facility usage.</p>
+            <p class="text-muted small mb-0">Overview of immediate actions and today's activity.</p>
         </div>
         <div class="d-flex gap-2">
             <a href="{% url 'admin:index' %}" class="btn btn-dark btn-sm rounded-pill px-4 shadow-sm fw-bold">
@@ -59,31 +59,100 @@
         </div>
     </div>
 
+    {% if waiting_users %}
     <div class="card border-0 shadow-sm overflow-hidden mb-5" style="border-radius: 20px;">
         <div class="card-header bg-white border-0 py-4 px-4 d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold mb-0 text-dark">
-                <i class="bi bi-list-check text-primary me-2"></i>Manage Requests
-            </h5>
-            {% if bookings %}
-            <span class="badge bg-light text-muted rounded-pill px-3">{{ bookings.count }} Records</span>
-            {% endif %}
+            <div class="d-flex align-items-center">
+                <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px;">
+                    <i class="bi bi-person-plus-fill fs-5"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Waiting Room</h5>
+                    <p class="small text-muted mb-0">Assign roles to verified Google users.</p>
+                </div>
+            </div>
+            <span class="badge bg-warning text-dark rounded-pill px-3">{{ waiting_users.count }} New User{% if waiting_users.count > 1 %}s{% endif %}</span>
         </div>
         
-        {% if bookings %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-hover">
+                <thead class="bg-light text-muted small text-uppercase fw-bold">
+                    <tr>
+                        <th class="ps-4 py-3 border-0">User Details</th>
+                        <th class="py-3 border-0">Joined On</th>
+                        <th class="text-end pe-4 py-3 border-0">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="border-top-0">
+                    {% for user in waiting_users %}
+                    <tr>
+                        <td class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3 text-primary fw-bold" style="width: 40px; height: 40px;">
+                                    {{ user.username|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ user.first_name }} {{ user.last_name }}</div>
+                                    <div class="small text-muted">{{ user.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3">
+                            <div class="small text-muted">{{ user.date_joined|date:"M d, Y" }}</div>
+                        </td>
+                        <td class="text-end pe-4 py-3">
+                            <form method="post" action="{% url 'assign_role' user.id %}" class="d-inline-flex gap-2">
+                                {% csrf_token %}
+                                <button type="submit" name="role" value="Faculty" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold shadow-sm">
+                                    <i class="bi bi-person-badge me-1"></i> Faculty
+                                </button>
+                                <button type="submit" name="role" value="Student Rep" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold shadow-sm">
+                                    <i class="bi bi-mortarboard me-1"></i> Student Rep
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'reject_user' user.id %}" class="d-inline ms-2" onsubmit="return confirm('Permanently delete this user?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" title="Reject User" style="width: 32px; height: 32px;">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm overflow-hidden mb-5" style="border-radius: 20px;">
+        <div class="card-header bg-white border-0 py-4 px-4 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-calendar-check text-primary me-2"></i>Pending & Upcoming
+                </h5>
+                <p class="text-muted small mb-0">Approvals and immediate schedule (Next 7 Days).</p>
+            </div>
+            
+            <a href="{% url 'booking_history' %}" class="btn btn-light text-primary fw-bold btn-sm rounded-pill px-3">
+                View Full History <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+        
         <div class="table-responsive">
             <table class="table align-middle mb-0 table-hover">
                 <thead class="bg-light text-muted small text-uppercase fw-bold">
                     <tr>
                         <th class="ps-4 py-3 border-0">When</th>
                         <th class="py-3 border-0">Where & Why</th>
-                        <th class="py-3 border-0">User & Reference</th> <th class="py-3 border-0">Status</th>
+                        <th class="py-3 border-0">User & Reference</th>
+                        <th class="py-3 border-0">Status</th>
                         <th class="text-end pe-4 py-3 border-0">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="border-top-0">
                     {% for b in bookings %}
-                    <tr>
-                        <td class="ps-4 py-3">
+                    <tr class="bg-warning bg-opacity-10"> <td class="ps-4 py-3">
                             <div class="fw-bold text-dark">{{ b.date|date:"M d" }}</div>
                             <div class="small text-muted">{{ b.start_time|time:"H:i" }} - {{ b.end_time|time:"H:i" }}</div>
                         </td>
@@ -91,15 +160,13 @@
                             <div class="fw-bold text-dark">{{ b.space.name }}</div>
                             <div class="small text-muted text-truncate" style="max-width: 200px;">{{ b.purpose }}</div>
                         </td>
-                        
                         <td class="py-3">
                             <div class="d-flex align-items-center">
-                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2 text-primary fw-bold" style="width: 35px; height: 35px; font-size: 0.8rem;">
+                                <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-2 text-primary fw-bold shadow-sm" style="width: 35px; height: 35px; font-size: 0.8rem;">
                                     {{ b.requested_by.username|slice:":1"|upper }}
                                 </div>
                                 <div>
                                     <div class="small fw-bold">{{ b.requested_by.username }}</div>
-                                    
                                     {% if b.faculty_in_charge %}
                                         <div class="text-muted" style="font-size: 0.75rem;">
                                             <i class="bi bi-person-check-fill me-1 text-success"></i>Ref: {{ b.faculty_in_charge }}
@@ -109,116 +176,86 @@
                             </div>
                         </td>
                         <td class="py-3">
-                            {% if b.status == "Pending" %}
-                                <span class="badge bg-warning text-dark bg-opacity-25 border border-warning rounded-pill px-3 py-2">Pending</span>
-                            {% elif b.status == "Approved" %}
-                                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2">Approved</span>
-                            {% elif b.status == "Rejected" %}
-                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill px-3 py-2">Rejected</span>
-                            {% else %}
-                                <span class="badge bg-secondary rounded-pill px-3 py-2">{{ b.status }}</span>
-                            {% endif %}
+                            <span class="badge bg-warning text-dark border border-warning rounded-pill px-3 py-2">Pending</span>
                         </td>
                         <td class="text-end pe-4 py-3">
-                            {% if b.status == "Pending" %}
-                                <form method="post" action="{% url 'approve_booking' b.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm me-1">
-                                        Approve
-                                    </button>
-                                </form>
-                                <form method="post" action="{% url 'reject_booking' b.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold">
-                                        Reject
-                                    </button>
-                                </form>
-                            {% elif b.status == "Approved" %}
-                                <form method="post" action="{% url 'admin_cancel_booking' b.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button class="btn btn-sm btn-light text-muted rounded-pill px-3" onclick="return confirm('Cancel this approved booking?');">
-                                        Cancel
-                                    </button>
-                                </form>
+                            <form method="post" action="{% url 'approve_booking' b.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm me-1">Approve</button>
+                            </form>
+                            <form method="post" action="{% url 'reject_booking' b.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold">Reject</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% for b in upcoming_bookings %}
+                    <tr>
+                        <td class="ps-4 py-3">
+                            <div class="fw-bold text-dark">{{ b.date|date:"M d" }}</div>
+                            <div class="small text-muted">{{ b.start_time|time:"H:i" }} - {{ b.end_time|time:"H:i" }}</div>
+                        </td>
+                        <td class="py-3">
+                            <div class="fw-bold text-dark">{{ b.space.name }}</div>
+                            <div class="small text-muted text-truncate" style="max-width: 200px;">{{ b.purpose }}</div>
+                        </td>
+                        <td class="py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2 text-primary fw-bold" style="width: 35px; height: 35px; font-size: 0.8rem;">
+                                    {{ b.requested_by.username|slice:":1"|upper }}
+                                </div>
+                                <div class="small">{{ b.requested_by.username }}</div>
+                            </div>
+                        </td>
+                        <td class="py-3">
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2">Approved</span>
+                        </td>
+                        <td class="text-end pe-4 py-3">
+                            {% if b.can_cancel %}
+                            <form method="post" action="{% url 'admin_cancel_booking' b.id %}" class="d-inline" onsubmit="return confirm('Cancel this upcoming booking?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold">Cancel</button>
+                            </form>
                             {% else %}
-                                <span class="text-muted small">—</span>
+                            <span class="text-muted small">-</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
+
+                    {% if not bookings and not upcoming_bookings %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                <i class="bi bi-calendar-check text-muted" style="font-size: 1.5rem;"></i>
+                            </div>
+                            <h6 class="text-muted fw-bold">No Pending or Immediate Upcoming Events</h6>
+                            <p class="small text-muted mb-0">Check the History tab for past records.</p>
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <div class="text-center py-5">
-            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                <i class="bi bi-check2-circle text-success" style="font-size: 1.5rem;"></i>
-            </div>
-            <h6 class="text-muted fw-bold">All caught up!</h6>
-            <p class="small text-muted mb-0">No bookings match your filters.</p>
-        </div>
-        {% endif %}
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-8">
+        <div class="col-12">
             <div class="card border-0 shadow-lg h-100" style="border-radius: 20px;">
                 <div class="card-header bg-white border-0 py-4 px-4">
-                    <h5 class="fw-bold mb-0 text-dark">Space Popularity</h5>
+                    <h5 class="fw-bold mb-0 text-dark">Space Popularity (Analytics)</h5>
                 </div>
                 <div class="card-body px-4 pb-4">
-                    <div style="height: 300px; width: 100%;">
+                    <div style="height: 350px; width: 100%;">
                         <canvas id="popularityChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-4">
-            <form method="get" class="card border-0 shadow-sm h-100" style="border-radius: 20px;">
-                <div class="card-header bg-white border-0 py-4 px-4">
-                    <h5 class="fw-bold mb-0 text-dark">Filter View</h5>
-                </div>
-                <div class="card-body px-4 d-flex flex-column gap-3">
-                    <div>
-                        <label class="form-label small fw-bold text-muted text-uppercase">Booking Status</label>
-                        <select name="status" class="form-select border-light bg-light py-2">
-                            <option value="">Show All</option>
-                            <option value="Pending"  {% if request.GET.status == "Pending" %}selected{% endif %}>Pending</option>
-                            <option value="Approved" {% if request.GET.status == "Approved" %}selected{% endif %}>Approved</option>
-                            <option value="Rejected" {% if request.GET.status == "Rejected" %}selected{% endif %}>Rejected</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="form-label small fw-bold text-muted text-uppercase">Venue</label>
-                        <select name="space_id" class="form-select border-light bg-light py-2">
-                            <option value="">All Venues</option>
-                            {% for s in all_spaces %}
-                            <option value="{{ s.id }}" {% if request.GET.space_id == s.id|stringformat:"s" %}selected{% endif %}>
-                                {{ s.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="form-label small fw-bold text-muted text-uppercase">Specific Date</label>
-                        <input type="date" name="date" class="form-control border-light bg-light py-2" value="{{ request.GET.date }}">
-                    </div>
-
-                    <div class="mt-auto pt-3 d-grid gap-2">
-                        <button type="submit" class="btn btn-primary fw-bold py-2 rounded-pill shadow-sm">
-                            Apply Filters
-                        </button>
-                        <a href="{% url 'admin_dashboard' %}" class="btn btn-light text-muted fw-bold py-2 rounded-pill">
-                            Clear
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
     </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -238,7 +275,7 @@
                     backgroundColor: '#0d6efd',
                     hoverBackgroundColor: '#0b5ed7',
                     borderRadius: 6,
-                    maxBarThickness: 50, 
+                    maxBarThickness: 60, 
                 }]
             },
             options: {
