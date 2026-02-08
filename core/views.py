@@ -18,6 +18,8 @@ from django.conf import settings
 # === IMPORTS ===
 from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking, Facility
 from .decorators import approval_required
+# === NEW IMPORT FOR DASHBOARD ===
+from .forms import SpaceForm, FacilityForm
 
 # ================= Helpers =================
 
@@ -491,6 +493,57 @@ def admin_cancel_booking(request, booking_id):
         
     # Redirect back to where the user came from (Dashboard OR History)
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
+
+# ================= RESOURCE MANAGEMENT (NEW) =================
+
+@user_passes_test(is_dashboard_authorized)
+def manage_resources(request):
+    """
+    Dashboard for adding/viewing Spaces and Facilities.
+    Handles Image Uploads via SpaceForm.
+    """
+    spaces = Space.objects.all()
+    facilities = Facility.objects.all()
+    
+    space_form = SpaceForm()
+    facility_form = FacilityForm()
+
+    if request.method == 'POST':
+        # Check which form was submitted based on the button name
+        if 'add_space' in request.POST:
+            space_form = SpaceForm(request.POST, request.FILES) # request.FILES is crucial for images
+            if space_form.is_valid():
+                space_form.save()
+                messages.success(request, "New Space added successfully!")
+                return redirect('manage_resources')
+            else:
+                messages.error(request, "Error adding space. Please check the form.")
+        
+        elif 'add_facility' in request.POST:
+            facility_form = FacilityForm(request.POST)
+            if facility_form.is_valid():
+                facility_form.save()
+                messages.success(request, "New Facility added successfully!")
+                return redirect('manage_resources')
+
+    context = {
+        'spaces': spaces,
+        'facilities': facilities,
+        'space_form': space_form,
+        'facility_form': facility_form,
+    }
+    return render(request, 'manage_resources.html', context)
+
+@user_passes_test(is_dashboard_authorized)
+def delete_space(request, pk):
+    """
+    Deletes a space. Restricted to Dashboard Authorized users.
+    """
+    space = get_object_or_404(Space, pk=pk)
+    space_name = space.name
+    space.delete()
+    messages.warning(request, f"Space '{space_name}' has been deleted.")
+    return redirect('manage_resources')
 
 # ================= API & Calendar =================
 

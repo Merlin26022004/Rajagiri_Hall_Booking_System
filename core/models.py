@@ -31,6 +31,10 @@ class Space(models.Model):
     capacity = models.PositiveIntegerField()
     description = models.TextField(blank=True)
     
+    # === NEW: Image Field for Dashboard ===
+    # Requires Pillow library: pip install Pillow
+    image = models.ImageField(upload_to='spaces/', blank=True, null=True)
+
     # === NEW: Link Facilities to Space ===
     # Defines what equipment this specific hall HAS.
     facilities = models.ManyToManyField(Facility, blank=True, related_name="spaces")

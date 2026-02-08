@@ -2,43 +2,92 @@
 
 {% block content %}
 <div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="section-title mb-0">All Spaces</h2>
-        <a href="{% url 'book_space' %}" class="btn btn-book btn-sm">
-            + New Booking
-        </a>
+        
+        <div>
+            {% if user.is_staff or user.is_superuser %}
+            <a href="{% url 'manage_resources' %}" class="btn btn-book btn-sm me-2">
+                Space Management
+            </a>
+            {% endif %}
+
+            <a href="{% url 'book_space' %}" class="btn btn-book btn-sm">
+                + New Booking
+            </a>
+        </div>
     </div>
 
     {% if spaces %}
     <div class="row g-4">
         {% for space in spaces %}
         <div class="col-md-4">
-            <div class="space-card p-3 h-100">
-                <h5 class="fw-bold mb-1">{{ space.name }}</h5>
-                <p class="text-muted small mb-2">
-                    {{ space.get_type_display }} • Capacity: {{ space.capacity }}
-                </p>
-                <p class="small mb-3">
-                    {{ space.description|default:"Suitable for seminars, classes and talks." }}
-                </p>
-                <div class="d-flex justify-content-between align-items-center">
-                    <a href="{% url 'space_availability' space.id %}"
-                       class="btn btn-sm btn-outline-secondary">
-                        View Availability
-                    </a>
-                    <a href="{% url 'book_space' %}?space_id={{ space.id }}"
-                       class="btn btn-sm btn-book">
-                        Book
-                    </a>
+            <div class="card h-100 shadow-sm border-0">
+                {% if space.image %}
+                    <img src="{{ space.image.url }}" class="card-img-top" alt="{{ space.name }}" style="height: 200px; object-fit: cover;">
+                {% else %}
+                    <div class="bg-light text-center d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <span class="text-muted">No Image Available</span>
+                    </div>
+                {% endif %}
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title fw-bold mb-0">{{ space.name }}</h5>
+                        <span class="badge bg-primary rounded-pill">{{ space.get_type_display }}</span>
+                    </div>
+                    
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-people-fill"></i> Capacity: {{ space.capacity }}
+                        {% if space.location %}
+                        <span class="mx-2">•</span> <i class="bi bi-geo-alt-fill"></i> {{ space.location }}
+                        {% endif %}
+                    </p>
+
+                    <p class="card-text small text-secondary">
+                        {{ space.description|default:"Suitable for seminars, classes and talks."|truncatewords:20 }}
+                    </p>
+
+                    {% if space.facilities.all %}
+                    <div class="mb-3">
+                        {% for facility in space.facilities.all|slice:":3" %}
+                            <span class="badge bg-light text-dark border">{{ facility.name }}</span>
+                        {% endfor %}
+                        {% if space.facilities.count > 3 %}
+                            <span class="badge bg-light text-dark border">+{{ space.facilities.count|add:"-3" }} more</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="card-footer bg-white border-top-0 pb-3 pt-0">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'space_availability' space.id %}" 
+                           class="btn btn-outline-secondary btn-sm flex-grow-1 d-flex align-items-center justify-content-center">
+                            View Availability
+                        </a>
+                        <a href="{% url 'book_space' %}?space_id={{ space.id }}" 
+                           class="btn btn-book btn-sm flex-grow-1 d-flex align-items-center justify-content-center">
+                            Book Now
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="text-center py-5 text-muted">
-        <p class="mb-1">No spaces have been created yet.</p>
-        <p class="mb-0 small">Add spaces from the Django admin under <strong>Core → Spaces</strong>.</p>
+    <div class="text-center py-5">
+        <div class="mb-3">
+            <i class="bi bi-building display-4 text-muted"></i>
+        </div>
+        <h4 class="text-muted">No spaces found</h4>
+        <p class="text-muted">Get started by adding classrooms, halls, or labs.</p>
+        {% if user.is_staff or user.is_superuser %}
+        <a href="{% url 'manage_resources' %}" class="btn btn-primary mt-2">
+            Add First Space
+        </a>
+        {% endif %}
     </div>
     {% endif %}
 </div>

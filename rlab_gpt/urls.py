@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from core import views
 
 urlpatterns = [
@@ -8,6 +10,10 @@ urlpatterns = [
     
     # NEW: Full History Page
     path('admin/history/', views.booking_history, name='booking_history'),
+
+    # NEW: Resource Management (Add Spaces/Facilities)
+    path('admin/resources/', views.manage_resources, name='manage_resources'),
+    path('admin/resources/delete/<int:pk>/', views.delete_space, name='delete_space'),
 
     # Timetable Management
     path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
@@ -20,22 +26,14 @@ urlpatterns = [
 
     # Dashboard Actions (User Management)
     path('admin/dashboard/users/<int:user_id>/assign/', views.assign_role, name='assign_role'),
-    # NEW: Reject/Delete User Action
     path('admin/dashboard/users/<int:user_id>/reject/', views.reject_user, name='reject_user'),
 
     # --- 2. Standard Admin Path ---
-    # This handles the Superuser login automatically
     path('admin/', admin.site.urls),
 
     # --- 3. Authentication ---
-    # ⚠️ REPLACED: "django.contrib.auth.urls" with "allauth.urls"
-    # This enables http://localhost:8000/accounts/google/login/
     path('accounts/', include('allauth.urls')),
-
-    # Custom Login Page
     path('login/', views.login_view, name='login'),
-    
-    # Custom Logout
     path('logout/', views.logout_view, name='logout'),
 
     # --- 4. Main App Paths ---
@@ -67,4 +65,9 @@ urlpatterns = [
     # Notifications
     path('notifications/', views.notification_list, name='notification_list'),
     path('notifications/read/<int:notif_id>/', views.mark_notification_read, name='mark_notification_read'),
-]
+
+] 
+
+# ⚠️ CRITICAL: Serves uploaded images during development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
