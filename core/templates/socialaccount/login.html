@@ -1,40 +1,155 @@
-{% extends "base.html" %}
-{% load i18n %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Sign In | RLAB Booking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% load i18n %}
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        rajagiri: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            600: '#16a34a',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                        'fade-in': 'fadeIn 1s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.9);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        body, div, nav, button, p, h1, h2, h3, span {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-dark-bg dark:text-gray-200 font-sans antialiased">
 
-{% block content %}
-<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="col-md-5 col-lg-4">
-        <div class="card shadow-lg border-0 rounded-4">
-            <div class="card-body p-5 text-center">
+    <nav class="fixed w-full z-50 glass border-b border-gray-100 dark:border-dark-border transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <a href="{% url 'home' %}" class="flex-shrink-0 flex items-center gap-2 cursor-pointer">
+                    <div class="w-8 h-8 bg-rajagiri-800 dark:bg-rajagiri-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md">R</div>
+                    <span class="font-bold text-xl tracking-tight text-rajagiri-900 dark:text-white">RLAB<span class="text-rajagiri-600 dark:text-rajagiri-400">Booking</span></span>
+                </a>
+
+                <div class="flex items-center gap-2 md:gap-4">
+                    <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-border transition focus:outline-none">
+                        <i id="theme-icon" class="fa-solid fa-moon text-lg"></i>
+                    </button>
+                    <a href="{% url 'home' %}" class="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition">
+                        Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="min-h-screen flex items-center justify-center pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-md opacity-0 animate-fade-in-up" style="animation-delay: 0.2s;">
+            <div class="bg-white dark:bg-dark-card rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-dark-border p-8 text-center">
                 
-                <div class="mb-4 text-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-shield-lock" viewBox="0 0 16 16">
-                        <path d="M5.338 1.59a61.44 61.44 0 0 0-2.837.856.481.481 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.725 10.725 0 0 0 2.287 2.233c.346.244.652.42.893.533.12.057.218.095.293.118a.55.55 0 0 0 .101.025.615.615 0 0 0 .1-.025c.076-.023.174-.061.294-.118.24-.113.547-.29.893-.533a10.726 10.726 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.775 11.775 0 0 1-2.517 2.453 7.159 7.159 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7.158 7.158 0 0 1-1.048-.625 11.777 11.777 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 62.456 62.456 0 0 1 5.072.56z"/>
-                        <path d="M9.5 6.5a1.5 1.5 0 0 1-1 1.415l.385 1.99a.5.5 0 0 1-.491.595h-.788a.5.5 0 0 1-.49-.595l.384-1.99a1.5 1.5 0 1 1 2-1.415z"/>
-                    </svg>
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 mb-6">
+                    <i class="fa-solid fa-shield-halved text-2xl"></i>
                 </div>
 
-                <h3 class="fw-bold mb-3">Confirm Sign In</h3>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Confirm Sign In</h3>
                 
-                <p class="text-muted mb-4">
+                <p class="text-gray-600 dark:text-gray-400 mb-6">
                     {% blocktrans with provider.name as provider %}
                     You are about to sign in securely using your <strong>{{ provider }}</strong> account.
                     {% endblocktrans %}
                 </p>
 
-                <form method="post">
+                <form method="post" class="space-y-4">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold mb-3">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition transform hover:-translate-y-0.5">
                         Continue to Google
                     </button>
                 </form>
 
-                <a href="{% url 'login' %}" class="btn btn-light w-100 py-2 text-muted">
+                <a href="{% url 'login' %}" class="block mt-4 w-full px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-dark-bg transition">
                     Cancel
                 </a>
 
             </div>
         </div>
-    </div>
-</div>
-{% endblock %}
+    </main>
+
+    <script>
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const htmlElement = document.documentElement;
+
+        // Check local storage or system preference on load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        } else {
+            htmlElement.classList.remove('dark');
+            themeIcon.classList.remove('fa-sun');
+            themeIcon.classList.add('fa-moon');
+        }
+
+        // Toggle functionality
+        themeToggleBtn.addEventListener('click', () => {
+            if (htmlElement.classList.contains('dark')) {
+                htmlElement.classList.remove('dark');
+                localStorage.theme = 'light';
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            } else {
+                htmlElement.classList.add('dark');
+                localStorage.theme = 'dark';
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            }
+        });
+    </script>
+</body>
+</html>

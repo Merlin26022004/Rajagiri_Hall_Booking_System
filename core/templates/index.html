@@ -1,102 +1,323 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RLAB Booking | Modern Redesign</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Enables manual toggling
+            theme: {
+                extend: {
+                    colors: {
+                        rajagiri: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80', // Lighter green for dark mode text
+                            600: '#16a34a',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        dark: {
+                            bg: '#0f172a',      // Slate 900
+                            card: '#1e293b',    // Slate 800
+                            border: '#334155',  // Slate 700
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                        'fade-in': 'fadeIn 1s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Light Mode Glass */
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        
+        /* Dark Mode Glass */
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.9); /* Slate 900 with opacity */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        /* Smooth transition for theme switch */
+        body, div, nav, button, p, h1, h2, h3, span {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-dark-bg dark:text-gray-200 font-sans antialiased">
 
-{% block content %}
-<section class="hero">
-    <div class="container">
-        <div class="row align-items-center gy-4">
-            <div class="col-md-7">
-                <h1 class="fw-bold mb-3">
-                    Hall, Classroom & Lab Booking
-                </h1>
-                <p class="lead mb-4">
-                    Plan lectures, exams, and events with ease.
-                    Check real-time availability of halls, classrooms and labs,
-                    and submit booking requests in a few clicks.
-                </p>
-                <a href="{% url 'book_space' %}"
-                   class="btn btn-book btn-lg">
-                    Book Now
+    <nav class="fixed w-full z-50 glass border-b border-gray-100 dark:border-dark-border transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <a href="{% if user.is_staff %}{% url 'admin_dashboard' %}{% else %}{% url 'home' %}{% endif %}" class="flex-shrink-0 flex items-center gap-2 cursor-pointer">
+                    <div class="w-8 h-8 bg-rajagiri-800 dark:bg-rajagiri-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md">R</div>
+                    <span class="font-bold text-xl tracking-tight text-rajagiri-900 dark:text-white">RLAB<span class="text-rajagiri-600 dark:text-rajagiri-400">Booking</span></span>
                 </a>
-            </div>
-            <div class="col-md-5">
-                <div class="p-3 rounded-4 bg-white shadow-sm">
-                    <h5 class="fw-semibold mb-2">Today’s Snapshot</h5>
-                    <ul class="mb-0 small list-unstyled">
-                        <li class="mb-1">
-                            {% if user.is_staff %}
-                                Total bookings today:
-                            {% else %}
-                                My bookings today:
-                            {% endif %}
-                            <strong>{{ stats.today_total|default:0 }}</strong>
-                        </li>
 
-                        <li class="mb-1">
-                            {% if user.is_staff %}
-                                Pending approvals:
-                            {% else %}
-                                My Pending Requests:
-                            {% endif %}
-                            <strong class="text-warning">{{ stats.pending|default:0 }}</strong>
-                        </li>
+                <div class="hidden md:flex space-x-8 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {% if user.is_staff %}
+                    <a href="{% url 'admin_dashboard' %}" class="{% if '/admin/dashboard/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Dashboard</a>
+                    {% else %}
+                    <a href="{% url 'home' %}" class="{% if request.path == '/' %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Home</a>
+                    {% endif %}
+                    <a href="{% url 'space_list' %}" class="{% if '/spaces/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Spaces</a>
+                    <a href="{% url 'bus_list' %}" class="{% if '/buses/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Transport</a>
+                    <a href="{% url 'calendar' %}" class="{% if '/calendar/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Calendar</a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'my_bookings' %}" class="{% if '/my-bookings/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">My Bookings</a>
+                    {% endif %}
+                    {% if user.is_staff %}
+                    <a href="{% url 'upload_timetable' %}" class="{% if '/admin/timetable/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Timetable</a>
+                    {% endif %}
+                </div>
 
-                        <li class="mb-1">
-                            {% if user.is_staff %}
-                                Approved this week:
-                            {% else %}
-                                My Approved (Week):
-                            {% endif %}
-                            <strong class="text-success">{{ stats.week_approved|default:0 }}</strong>
-                        </li>
+                <div class="flex items-center gap-2 md:gap-4">
+                    <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-border transition focus:outline-none">
+                        <i id="theme-icon" class="fa-solid fa-moon text-lg"></i>
+                    </button>
 
-                        <li>
-                            Upcoming blocked dates: 
-                            <strong class="text-danger">{{ stats.blocked|default:0 }}</strong>
-                        </li>
-                    </ul>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'notification_list' %}" class="relative p-2 text-gray-500 dark:text-gray-400 hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition">
+                        <i class="fa-regular fa-bell text-lg"></i>
+                        {% if user_notifications %}
+                        <span class="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full border border-white dark:border-dark-bg"></span>
+                        {% endif %}
+                    </a>
+
+                    <div class="hidden md:flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-700 relative">
+                        <div class="text-right">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Logged in as</p>
+                            <p class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ user.get_full_name|default:user.username }}</p>
+                        </div>
+                        <div class="relative">
+                            <button id="user-menu-button" class="h-8 w-8 rounded-full bg-rajagiri-100 dark:bg-rajagiri-900 flex items-center justify-center text-rajagiri-800 dark:text-rajagiri-100 font-bold border border-rajagiri-200 dark:border-rajagiri-800 shadow-sm hover:ring-2 hover:ring-rajagiri-400 dark:hover:ring-rajagiri-500 transition cursor-pointer focus:outline-none">
+                                {{ user.username|first|upper }}
+                            </button>
+                            <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-dark-card rounded-lg shadow-xl border border-gray-200 dark:border-dark-border py-2 z-50">
+                                <a href="{% url 'logout' %}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg transition">
+                                    <i class="fa-solid fa-right-from-bracket text-red-500"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="px-4 py-2 text-sm font-semibold bg-rajagiri-800 dark:bg-rajagiri-600 text-white rounded-lg hover:bg-rajagiri-900 dark:hover:bg-rajagiri-700 transition">
+                        Login
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </nav>
 
-<section class="py-5">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="section-title mb-0">Bookable Spaces</h2>
-            <a href="{% url 'space_list' %}"
-               class="small fw-semibold text-decoration-none">
-                View all &rsaquo;
-            </a>
+    <main class="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        
+        {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+            <div class="bg-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% elif message.tags == 'success' %}green{% else %}blue{% endif %}-100 dark:bg-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% elif message.tags == 'success' %}green{% else %}blue{% endif %}-900/30 border border-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% elif message.tags == 'success' %}green{% else %}blue{% endif %}-400 text-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% elif message.tags == 'success' %}green{% else %}blue{% endif %}-700 dark:text-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% elif message.tags == 'success' %}green{% else %}blue{% endif %}-300 px-4 py-3 rounded-lg mb-2">
+                {{ message }}
+            </div>
+            {% endfor %}
         </div>
+        {% endif %}
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+            <div class="lg:col-span-2 flex flex-col justify-center opacity-0 animate-fade-in-up" style="animation-delay: 0.1s;">
+                <span class="inline-block py-1 px-3 rounded-full bg-rajagiri-100 dark:bg-rajagiri-900/50 text-rajagiri-800 dark:text-rajagiri-400 text-xs font-bold w-max mb-4 border border-rajagiri-200 dark:border-rajagiri-800">
+                    🚀 Seamless Campus Management
+                </span>
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white leading-tight mb-4">
+                    Hall, Classroom & <br> <span class="text-rajagiri-600 dark:text-rajagiri-400">Lab Booking Made Easy</span>
+                </h1>
+                <p class="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg">
+                    Plan lectures, exams, and events with ease. Check real-time availability and secure your space in just a few clicks.
+                </p>
+                <div class="flex flex-wrap gap-4">
+                    <a href="{% url 'book_space' %}" class="bg-rajagiri-800 hover:bg-rajagiri-900 dark:bg-rajagiri-600 dark:hover:bg-rajagiri-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg shadow-rajagiri-600/30 transition transform hover:-translate-y-1">
+                        Book Now
+                    </a>
+                    <a href="{% url 'calendar' %}" class="bg-white dark:bg-transparent border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-rajagiri-600 dark:hover:border-rajagiri-400 hover:text-rajagiri-600 dark:hover:text-rajagiri-400 px-6 py-3 rounded-lg font-semibold transition">
+                        View Calendar
+                    </a>
+                </div>
+            </div>
 
-        <div class="row g-4">
-            {% for space in spaces %}
-            <div class="col-md-4">
-                <div class="space-card p-3 h-100">
-                    <h5 class="fw-bold mb-1">{{ space.name }}</h5>
-                    <p class="text-muted small mb-2">
-                        {{ space.get_type_display }} • Capacity: {{ space.capacity }}
-                    </p>
-                    <p class="small mb-3">
-                        {{ space.description|default:"Suitable for seminars, talks and meetings." }}
-                    </p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a href="{% url 'space_availability' space.id %}"
-                           class="btn btn-sm btn-outline-secondary">
-                            View Availability
-                        </a>
-                        <a href="{% url 'book_space' %}?space_id={{ space.id }}"
-                           class="btn btn-sm btn-book">
-                            Book
-                        </a>
+            <div class="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-dark-border opacity-0 animate-fade-in-up" style="animation-delay: 0.3s;">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-rajagiri-600 dark:text-rajagiri-400"></i> Today's Snapshot
+                </h3>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-dark-bg hover:bg-rajagiri-50 dark:hover:bg-gray-700/50 transition cursor-default group border border-transparent hover:border-rajagiri-100 dark:hover:border-gray-600">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                                <i class="fa-solid fa-calendar-check"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{% if user.is_staff %}Total Bookings{% else %}My Bookings{% endif %}</p>
+                                <p class="font-bold text-gray-800 dark:text-gray-200 group-hover:text-rajagiri-800 dark:group-hover:text-white transition">{{ stats.today_total|default:0 }} Today</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-dark-bg hover:bg-rajagiri-50 dark:hover:bg-gray-700/50 transition cursor-default group border border-transparent hover:border-rajagiri-100 dark:hover:border-gray-600">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{% if user.is_staff %}Pending Approvals{% else %}My Pending Requests{% endif %}</p>
+                                <p class="font-bold text-gray-800 dark:text-gray-200 group-hover:text-rajagiri-800 dark:group-hover:text-white transition">{{ stats.pending|default:0 }} Pending</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-dark-bg hover:bg-rajagiri-50 dark:hover:bg-gray-700/50 transition cursor-default group border border-transparent hover:border-rajagiri-100 dark:hover:border-gray-600">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center">
+                                <i class="fa-solid fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{% if user.is_staff %}Approved This Week{% else %}My Approved (Week){% endif %}</p>
+                                <p class="font-bold text-gray-800 dark:text-gray-200 group-hover:text-rajagiri-800 dark:group-hover:text-white transition">{{ stats.week_approved|default:0 }} Approved</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            {% empty %}
-            <p>No spaces configured yet.</p>
-            {% endfor %}
         </div>
-    </div>
-</section>
-{% endblock %}
+
+        <div class="h-px w-full bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent mb-12"></div>
+
+        <div class="mb-8 flex justify-between items-end opacity-0 animate-fade-in" style="animation-delay: 0.5s;">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white border-l-4 border-rajagiri-600 dark:border-rajagiri-400 pl-3">Bookable Spaces</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 pl-4 mt-1">Select a venue to view details and availability.</p>
+            </div>
+            <a href="{% url 'space_list' %}" class="text-sm font-semibold text-rajagiri-600 dark:text-rajagiri-400 hover:text-rajagiri-800 dark:hover:text-rajagiri-300 flex items-center gap-1 transition">
+                View all <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-0 animate-fade-in-up" style="animation-delay: 0.6s;">
+            
+            {% for space in spaces %}
+            <div class="group bg-white dark:bg-dark-card rounded-2xl p-5 shadow-sm hover:shadow-2xl hover:shadow-rajagiri-900/10 dark:hover:shadow-black/50 border border-gray-100 dark:border-dark-border transition-all duration-300 transform hover:-translate-y-2 cursor-pointer">
+                <div class="h-40 w-full bg-gray-200 dark:bg-gray-700 rounded-xl mb-4 overflow-hidden relative">
+                    {% if space.type == 'HALL' %}
+                    <div class="absolute inset-0 bg-gradient-to-br from-rajagiri-800 to-gray-800 opacity-90 group-hover:scale-105 transition duration-500"></div>
+                    {% elif space.type == 'LAB' %}
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-800 to-gray-800 opacity-90 group-hover:scale-105 transition duration-500"></div>
+                    {% else %}
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-700 to-gray-800 opacity-90 group-hover:scale-105 transition duration-500"></div>
+                    {% endif %}
+                    <div class="absolute top-3 right-3 bg-white/90 dark:bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-bold text-gray-800 dark:text-gray-200 border border-transparent dark:border-white/10">
+                        <i class="fa-solid {% if space.type == 'HALL' %}fa-user-group text-rajagiri-600 dark:text-rajagiri-400{% elif space.type == 'LAB' %}fa-desktop text-blue-600 dark:text-blue-400{% else %}fa-chair text-orange-600 dark:text-orange-400{% endif %} mr-1"></i> {{ space.capacity }}
+                    </div>
+                    <div class="absolute bottom-3 left-3 text-white font-bold text-lg drop-shadow-md">{{ space.name }}</div>
+                </div>
+                
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-xs font-semibold {% if space.type == 'HALL' %}text-rajagiri-600 dark:text-rajagiri-400{% elif space.type == 'LAB' %}text-blue-600 dark:text-blue-400{% else %}text-orange-600 dark:text-orange-400{% endif %} uppercase tracking-wide">{{ space.get_type_display }}</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1 line-clamp-2">{{ space.description|default:"Ideal for seminars, talks and meetings." }}</p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-2 mt-4">
+                    <a href="{% url 'space_availability' space.id %}" class="flex-1 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-semibold hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition text-center">
+                        View Availability
+                    </a>
+                    <a href="{% url 'book_space' %}?space_id={{ space.id }}" class="flex-1 py-2 rounded-lg bg-rajagiri-800 dark:bg-rajagiri-600 text-white text-sm font-semibold hover:bg-rajagiri-900 dark:hover:bg-rajagiri-700 transition shadow-lg shadow-rajagiri-600/20 text-center">
+                        Book
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full text-center py-12">
+                <p class="text-gray-500 dark:text-gray-400">No spaces configured yet.</p>
+            </div>
+            {% endfor %}
+
+        </div>
+
+    </main>
+
+    <script>
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const htmlElement = document.documentElement;
+
+        // Check local storage or system preference on load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        } else {
+            htmlElement.classList.remove('dark');
+            themeIcon.classList.remove('fa-sun');
+            themeIcon.classList.add('fa-moon');
+        }
+
+        // Toggle functionality
+        themeToggleBtn.addEventListener('click', () => {
+            if (htmlElement.classList.contains('dark')) {
+                htmlElement.classList.remove('dark');
+                localStorage.theme = 'light';
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            } else {
+                htmlElement.classList.add('dark');
+                localStorage.theme = 'dark';
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            }
+        });
+
+        // User menu dropdown toggle
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userMenu = document.getElementById('user-menu');
+        
+        if (userMenuButton && userMenu) {
+            userMenuButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userMenu.classList.toggle('hidden');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userMenuButton.contains(e.target) && !userMenu.contains(e.target)) {
+                    userMenu.classList.add('hidden');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
