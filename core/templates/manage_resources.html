@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
     
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="section-title mb-0">Resource Management</h2>
@@ -20,6 +20,11 @@
         <li class="nav-item">
             <button class="nav-link rounded-pill px-4" id="pills-facilities-tab" data-bs-toggle="pill" data-bs-target="#pills-facilities" type="button">
                 <i class="bi bi-tools me-2"></i>Facilities
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link rounded-pill px-4" id="pills-types-tab" data-bs-toggle="pill" data-bs-target="#pills-types" type="button">
+                <i class="bi bi-tags-fill me-2"></i>Venue Types
             </button>
         </li>
     </ul>
@@ -86,14 +91,13 @@
 
                             <div class="mb-4">
                                 <label class="label-material mb-2">Facilities</label>
-                                <div class="facilities-container p-3 rounded">
-                                    <!-- FIXED: Simple two-column layout with proper alignment -->
-                                    <div class="row g-3">
+                                <div class="facilities-container p-3 rounded bg-light border">
+                                    <div class="row g-2">
                                         {% for checkbox in space_form.facilities %}
                                         <div class="col-6">
-                                            <div class="form-check d-flex align-items-center">
+                                            <div class="form-check">
                                                 {{ checkbox.tag }}
-                                                <label class="form-check-label ms-2" for="{{ checkbox.id_for_label }}">
+                                                <label class="form-check-label small" for="{{ checkbox.id_for_label }}">
                                                     {{ checkbox.choice_label }}
                                                 </label>
                                             </div>
@@ -135,7 +139,7 @@
                                     
                                     <div class="space-info">
                                         <h6 class="fw-bold mb-0">{{ space.name }}</h6>
-                                        <small class="text-muted">{{ space.get_type_display }} • Cap: {{ space.capacity }}</small>
+                                        <small class="text-muted">{{ space.type.name }} • Cap: {{ space.capacity }}</small>
                                     </div>
                                 </div>
                                 
@@ -207,6 +211,73 @@
                             {% empty %}
                             <li class="list-group-item text-center text-muted py-5 border-0">
                                 No facilities found. Add one on the left.
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="pills-types" role="tabpanel">
+            <div class="row justify-content-center g-4">
+                
+                <div class="col-md-5">
+                    <div class="card-google text-center">
+                        <div class="mb-3 text-primary">
+                            <i class="bi bi-tags-fill fs-1"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3 rajagiri-maroon-text">Add Venue Type</h4>
+                        <p class="text-muted small mb-4">Define new categories like "Auditorium" or "Open Ground".</p>
+                        
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-4 text-start">
+                                <label class="label-material">Type Name</label>
+                                <div class="modern-input-group">
+                                    <i class="bi bi-card-heading modern-input-icon"></i>
+                                    {{ type_form.name }}
+                                </div>
+                            </div>
+                            <button type="submit" name="add_type" class="btn-book w-100">
+                                Add Type
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="card-google h-100">
+                        <h4 class="fw-bold mb-4 rajagiri-maroon-text">Active Types</h4>
+                        <ul class="list-group list-group-flush">
+                            {% for type in space_types %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center border-bottom py-3 px-0">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle-fill text-primary me-3"></i>
+                                    <span class="fw-bold">{{ type.name }}</span>
+                                </div>
+                                
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="badge bg-light text-secondary rounded-pill border">
+                                        Used in {{ type.spaces.count }} Spaces
+                                    </span>
+                                    
+                                    <a href="{% url 'edit_space_type' type.pk %}" class="btn btn-link text-secondary p-0" title="Edit Type">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+
+                                    <a href="{% url 'delete_space_type' type.pk %}" 
+                                       class="btn btn-link text-danger p-0" 
+                                       title="Delete Type"
+                                       onclick="return confirm('Are you sure you want to delete \'{{ type.name }}\'? Spaces using this type will remain but become uncategorized.')">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </a>
+                                </div>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item text-center text-muted py-5 border-0">
+                                No types defined. Add one on the left.
                             </li>
                             {% endfor %}
                         </ul>
