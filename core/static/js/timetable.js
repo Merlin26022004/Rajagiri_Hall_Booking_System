@@ -1,12 +1,12 @@
-document.addEventListener('DOMContentLoaded', function() {
-    
+document.addEventListener('DOMContentLoaded', function () {
+
     const countInput = document.getElementById('studentCount');
     if (countInput) {
         const spaceSelect = document.getElementById('spaceSelect');
         const options = spaceSelect.querySelectorAll('option');
         const recommendText = document.getElementById('recommendationText');
 
-        countInput.addEventListener('input', function() {
+        countInput.addEventListener('input', function () {
             const requiredSeats = parseInt(this.value) || 0;
             let bestFitOption = null;
             let smallestDifference = Infinity;
@@ -49,10 +49,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const toggle = document.getElementById('customTimeToggle');
     if (toggle) {
-        toggle.addEventListener('change', function() {
+        toggle.addEventListener('change', function () {
             const standardInputs = document.querySelectorAll('.standard-time');
             const customInputs = document.querySelectorAll('.custom-time');
-            
+
             if (this.checked) {
                 standardInputs.forEach(el => el.classList.add('d-none'));
                 customInputs.forEach(el => el.classList.remove('d-none'));
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
         minDate: "today",
         dateFormat: "Y-m-d",
         disableMobile: "true",
-        onChange: function(selectedDates, dateStr, instance) {
+        onChange: function (selectedDates, dateStr, instance) {
             endPicker.set('minDate', dateStr);
         }
     });

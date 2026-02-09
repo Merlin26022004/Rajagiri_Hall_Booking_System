@@ -74,13 +74,13 @@
     <nav class="fixed w-full z-50 glass border-b border-gray-100 dark:border-dark-border transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
-                <a href="{% if user.is_staff %}{% url 'admin_dashboard' %}{% else %}{% url 'home' %}{% endif %}" class="flex-shrink-0 flex items-center gap-2 cursor-pointer">
+                <a href="{% if user.is_superuser %}{% url 'admin_dashboard' %}{% else %}{% url 'home' %}{% endif %}" class="flex-shrink-0 flex items-center gap-2 cursor-pointer">
                     <div class="w-8 h-8 bg-rajagiri-800 dark:bg-rajagiri-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md">R</div>
                     <span class="font-bold text-xl tracking-tight text-rajagiri-900 dark:text-white">RLAB<span class="text-rajagiri-600 dark:text-rajagiri-400">Booking</span></span>
                 </a>
 
                 <div class="hidden md:flex space-x-8 text-sm font-medium text-gray-600 dark:text-gray-400">
-                    {% if user.is_staff %}
+                    {% if user.is_superuser %}
                     <a href="{% url 'admin_dashboard' %}" class="{% if '/admin/dashboard/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Dashboard</a>
                     {% else %}
                     <a href="{% url 'home' %}" class="{% if request.path == '/' %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Home</a>
@@ -91,7 +91,7 @@
                     {% if user.is_authenticated %}
                     <a href="{% url 'my_bookings' %}" class="{% if '/my-bookings/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">My Bookings</a>
                     {% endif %}
-                    {% if user.is_staff %}
+                    {% if user.is_superuser %}
                     <a href="{% url 'upload_timetable' %}" class="{% if '/admin/timetable/' in request.path %}text-rajagiri-800 dark:text-rajagiri-400 font-bold relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-rajagiri-600 after:rounded-full{% else %}hover:text-rajagiri-600 dark:hover:text-rajagiri-400 transition{% endif %}">Timetable</a>
                     {% endif %}
                 </div>

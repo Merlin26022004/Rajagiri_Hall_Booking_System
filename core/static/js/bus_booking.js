@@ -1,5 +1,5 @@
-document.addEventListener('DOMContentLoaded', function() {
-    
+document.addEventListener('DOMContentLoaded', function () {
+
     // === 1. BEAUTIFUL CALENDAR ===
     flatpickr("#journeyDate", {
         minDate: "today",
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
 
     if (headcountInput) {
-        headcountInput.addEventListener('input', function() {
+        headcountInput.addEventListener('input', function () {
             const count = parseInt(this.value) || 0;
             let validBusFound = false;
             let bestFit = null;
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (opt.value === "") return;
 
                 const cap = parseInt(opt.getAttribute('data-capacity'));
-                
+
                 if (count > cap) {
                     // Disable small buses
                     opt.disabled = true;
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.textContent = "Cannot Book: Too many passengers";
                 submitBtn.classList.add("btn-secondary");
                 submitBtn.classList.remove("btn-google");
-                
+
                 suggestionText.style.display = 'block';
                 suggestionText.classList.add("text-danger");
                 suggestionText.innerHTML = `<i class="bi bi-x-circle-fill"></i> No single vehicle can hold ${count} people. Please contact Transport Officer directly.`;
