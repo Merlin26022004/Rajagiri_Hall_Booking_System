@@ -874,7 +874,16 @@ def upload_timetable(request):
     
     if request.method == "POST":
         space_id = request.POST.get("space_id")
-        day_of_week = int(request.POST.get("day_of_week"))
+        
+        # 🟡 FIX: Prevent crash on invalid integer
+        try:
+            day_of_week = int(request.POST.get("day_of_week"))
+            if not (0 <= day_of_week <= 6):
+                raise ValueError("Day must be 0-6")
+        except (ValueError, TypeError):
+            messages.error(request, "Invalid day of week selected.")
+            return redirect("upload_timetable")
+        
         expected_count = request.POST.get("expected_count") or 0
         
         start_custom = request.POST.get("start_time_custom")
@@ -891,24 +900,47 @@ def upload_timetable(request):
         sem_end = parse_date(request.POST.get("sem_end"))
         subject = request.POST.get("subject")
 
-        # --- SECURITY FIX: DoS Protection ---
+        # === SECURITY & VALIDATION CHECKS ===
+
+        # 1. Check for missing dates
         if not sem_start or not sem_end:
              messages.error(request, "Invalid dates provided.")
              return redirect("upload_timetable")
 
-        # Limit strictly to ~8 months (245 days)
+        # 🟡 FIX: Prevent booking in the past
+        if sem_start < timezone.localdate():
+            messages.error(request, "Cannot schedule timetable for past dates.")
+            return redirect("upload_timetable")
+
+        # 🟡 FIX: Prevent backwards date range (End before Start)
+        if sem_start > sem_end:
+            messages.error(request, "End date cannot be before start date.")
+            return redirect("upload_timetable")
+
+        # Check max duration (8 months)
         max_duration = timedelta(days=245)
         if (sem_end - sem_start) > max_duration:
-             messages.error(request, "Operation Aborted: Date range too large. Semester cannot exceed 8 months.")
+             messages.error(request, "Date range too large (Limit: 8 months).")
              return redirect("upload_timetable")
-        # ------------------------------------
+
+        # ====================================
 
         space = get_object_or_404(Space, id=space_id)
         current_date = sem_start
         booking_count = 0
         
+        # 🔴 FIX: Hard limit on total bookings created
+        # Even with valid dates, we stop after 50 bookings to prevent flooding
+        MAX_BOOKINGS_LIMIT = 50 
+
         while current_date <= sem_end:
             if current_date.weekday() == day_of_week:
+                
+                # Check Limit
+                if booking_count >= MAX_BOOKINGS_LIMIT:
+                    messages.warning(request, f"Safety Limit Reached: Stopped after creating {booking_count} bookings.")
+                    break
+
                 conflict = Booking.objects.filter(
                     space=space, date=current_date,
                     status=Booking.STATUS_APPROVED
@@ -927,9 +959,14 @@ def upload_timetable(request):
                         expected_count=expected_count
                     )
                     booking_count += 1
+            
             current_date += timedelta(days=1)
             
-        messages.success(request, f"Success! Generated {booking_count} bookings for {subject}.")
+        if booking_count > 0:
+            messages.success(request, f"Success! Generated {booking_count} bookings for {subject}.")
+        else:
+            messages.info(request, "No bookings were created (dates may be blocked or outside the selected day of week).")
+            
         return redirect("admin_dashboard")
 
     return render(request, "upload_timetable.html", {"spaces": spaces})
