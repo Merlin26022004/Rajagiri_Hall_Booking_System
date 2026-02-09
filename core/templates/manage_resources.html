@@ -204,9 +204,23 @@
                                     <i class="bi bi-check-circle-fill text-success me-3"></i>
                                     <span class="fw-bold">{{ facility.name }}</span>
                                 </div>
-                                <span class="badge bg-light text-secondary rounded-pill border">
-                                    {{ facility.spaces.count }} Spaces
-                                </span>
+                                
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="badge bg-light text-secondary rounded-pill border">
+                                        {{ facility.spaces.count }} Spaces
+                                    </span>
+
+                                    <a href="{% url 'edit_facility' facility.pk %}" class="btn btn-link text-secondary p-0" title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+
+                                    <a href="{% url 'delete_facility' facility.pk %}" 
+                                       class="btn btn-link text-danger p-0" 
+                                       title="Delete"
+                                       onclick="return confirm('Delete \'{{ facility.name }}\'? This will remove it from all spaces currently listed with this facility.')">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </a>
+                                </div>
                             </li>
                             {% empty %}
                             <li class="list-group-item text-center text-muted py-5 border-0">

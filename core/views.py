@@ -566,18 +566,8 @@ def delete_space_type(request, pk):
 @user_passes_test(is_dashboard_authorized)
 def edit_space_type(request, pk):
     """
-    Renders a dedicated page or simple form to edit a SpaceType name.
-    For simplicity, this example just renders the manage page with a 'edit_mode' flag,
-    or you can create a separate tiny template. 
-    Here, we'll keep it simple: Just update the name via a POST request if accessing a specific URL,
-    or redirect to a dedicated edit page.
-    
-    Since we don't have a separate edit page, let's implement a simple direct update view 
-    that assumes a form submission or just redirects back for now.
+    Simple edit view for SpaceType.
     """
-    # For a full edit feature, you'd usually have a separate template.
-    # To keep it single-page, we can't easily pop up a modal without JS.
-    # Let's auto-generate a simple form page for editing.
     venue_type = get_object_or_404(SpaceType, pk=pk)
     
     if request.method == 'POST':
@@ -590,6 +580,37 @@ def edit_space_type(request, pk):
         form = SpaceTypeForm(instance=venue_type)
 
     return render(request, 'edit_space_type.html', {'form': form, 'type': venue_type})
+
+# === NEW: FACILITY EDIT & DELETE ACTIONS ===
+
+@user_passes_test(is_dashboard_authorized)
+def delete_facility(request, pk):
+    """
+    Deletes a Facility.
+    """
+    facility = get_object_or_404(Facility, pk=pk)
+    name = facility.name
+    facility.delete()
+    messages.warning(request, f"Facility '{name}' has been deleted from inventory.")
+    return redirect('manage_resources')
+
+@user_passes_test(is_dashboard_authorized)
+def edit_facility(request, pk):
+    """
+    Edit a Facility name.
+    """
+    facility = get_object_or_404(Facility, pk=pk)
+    
+    if request.method == 'POST':
+        form = FacilityForm(request.POST, instance=facility)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Facility updated to '{facility.name}'")
+            return redirect('manage_resources')
+    else:
+        form = FacilityForm(instance=facility)
+
+    return render(request, 'edit_facility.html', {'form': form, 'facility': facility})
 
 # ================= API & Calendar =================
 

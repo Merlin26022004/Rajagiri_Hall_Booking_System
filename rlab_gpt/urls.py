@@ -11,15 +11,19 @@ urlpatterns = [
     # Full History Page
     path('admin/history/', views.booking_history, name='booking_history'),
 
-    # === Resource Management (Spaces & Types) ===
+    # === Resource Management (Spaces, Types & Facilities) ===
     path('admin/resources/', views.manage_resources, name='manage_resources'),
     
     # Space Actions
     path('admin/resources/delete/<int:pk>/', views.delete_space, name='delete_space'),
     
-    # NEW: Venue Type Actions (Delete & Edit)
+    # Venue Type Actions (Delete & Edit)
     path('admin/resources/type/delete/<int:pk>/', views.delete_space_type, name='delete_space_type'),
     path('admin/resources/type/edit/<int:pk>/', views.edit_space_type, name='edit_space_type'),
+
+    # NEW: Facility Actions (Delete & Edit)
+    path('admin/resources/facility/delete/<int:pk>/', views.delete_facility, name='delete_facility'),
+    path('admin/resources/facility/edit/<int:pk>/', views.edit_facility, name='edit_facility'),
 
     # Timetable Management
     path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
