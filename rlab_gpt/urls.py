@@ -1,31 +1,49 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from core import views
 
 urlpatterns = [
     # --- 1. Custom Admin Paths ---
-    path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
-    path('admin/timetable/clear/', views.clear_timetable, name='clear_timetable'),
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     
-    # Dashboard Actions
+    # Full History Page
+    path('admin/history/', views.booking_history, name='booking_history'),
+
+    # === Resource Management (Spaces, Types & Facilities) ===
+    path('admin/resources/', views.manage_resources, name='manage_resources'),
+    
+    # Space Actions
+    path('admin/resources/delete/<int:pk>/', views.delete_space, name='delete_space'),
+    
+    # Venue Type Actions (Delete & Edit)
+    path('admin/resources/type/delete/<int:pk>/', views.delete_space_type, name='delete_space_type'),
+    path('admin/resources/type/edit/<int:pk>/', views.edit_space_type, name='edit_space_type'),
+
+    # NEW: Facility Actions (Delete & Edit)
+    path('admin/resources/facility/delete/<int:pk>/', views.delete_facility, name='delete_facility'),
+    path('admin/resources/facility/edit/<int:pk>/', views.edit_facility, name='edit_facility'),
+
+    # Timetable Management
+    path('admin/timetable/', views.upload_timetable, name='upload_timetable'),
+    path('admin/timetable/clear/', views.clear_timetable, name='clear_timetable'),
+    
+    # Dashboard Actions (Booking Management)
     path('admin/dashboard/bookings/<int:booking_id>/approve/', views.approve_booking, name='approve_booking'),
     path('admin/dashboard/bookings/<int:booking_id>/reject/', views.reject_booking, name='reject_booking'),
     path('admin/dashboard/bookings/<int:booking_id>/cancel/', views.admin_cancel_booking, name='admin_cancel_booking'),
 
+    # Dashboard Actions (User Management)
+    path('admin/dashboard/users/<int:user_id>/assign/', views.assign_role, name='assign_role'),
+    path('admin/dashboard/users/<int:user_id>/reject/', views.reject_user, name='reject_user'),
+
     # --- 2. Standard Admin Path ---
-    # This handles the Superuser login automatically
     path('admin/', admin.site.urls),
 
     # --- 3. Authentication ---
-    # ⚠️ REPLACED: "django.contrib.auth.urls" with "allauth.urls"
-    # This enables http://localhost:8000/accounts/google/login/
     path('accounts/', include('allauth.urls')),
-
-    # Custom Login Page (We will update the template for this next)
     path('login/', views.login_view, name='login'),
-    
-    # Custom Logout
     path('logout/', views.logout_view, name='logout'),
 
     # --- 4. Main App Paths ---
@@ -57,4 +75,9 @@ urlpatterns = [
     # Notifications
     path('notifications/', views.notification_list, name='notification_list'),
     path('notifications/read/<int:notif_id>/', views.mark_notification_read, name='mark_notification_read'),
-]
+
+] 
+
+# ⚠️ CRITICAL: Serves uploaded images during development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

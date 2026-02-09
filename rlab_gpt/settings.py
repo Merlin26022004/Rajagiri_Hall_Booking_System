@@ -102,11 +102,16 @@ TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JS)
+# ================= STATIC & MEDIA FILES =================
+# Static files (CSS, JS, Images)
 STATIC_URL = "static/"
 STATICFILES_DIRS = [
     BASE_DIR / "core" / "static",
 ]
+
+# Media Files (Uploaded by Users) - ADDED THIS
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -121,17 +126,19 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 # ================= ALLAUTH CONFIGURATION (UPDATED) =================
 SITE_ID = 1
 
-# 1. Login Logic: Use Email, but FORCE a Username to exist in DB
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = True   # <--- CHANGED TO TRUE: Prevents "nameless" user crashes
+# 1. Login Logic: Use Email (Replaces ACCOUNT_AUTHENTICATION_METHOD)
+ACCOUNT_LOGIN_METHODS = {'email'}
 
-# 2. Auto-Generate Username from Email (Frictionless)
-# If email is 'sreeraj@gmail.com', username becomes 'sreeraj'
+# 2. Signup Fields: Explicitly define required fields
+# Replaces ACCOUNT_EMAIL_REQUIRED and ACCOUNT_USERNAME_REQUIRED
+# The '*' denotes that the field is required.
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+
+# 3. Auto-Generate Username from Email (Frictionless)
 SOCIALACCOUNT_AUTO_SIGNUP = True   # <--- KEY FIX: Skips additional signup forms
 ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
 
-# 3. Verification
+# 4. Verification
 ACCOUNT_EMAIL_VERIFICATION = 'none' # Google handles verification
 
 # Redirects

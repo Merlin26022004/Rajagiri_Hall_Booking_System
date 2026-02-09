@@ -3,7 +3,14 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
 
-# === NEW MODEL: FACILITIES (Mic, Projector, etc.) ===
+# === NEW MODEL: VENUE TYPES (e.g., Class, Lab, Auditorium) ===
+class SpaceType(models.Model):
+    name = models.CharField(max_length=50, unique=True)  # e.g. "Seminar Hall"
+
+    def __str__(self):
+        return self.name
+
+# === FACILITIES (Mic, Projector, etc.) ===
 class Facility(models.Model):
     name = models.CharField(max_length=100)  # e.g., "Projector", "Sound System"
     
@@ -15,24 +22,25 @@ class Facility(models.Model):
 
 
 class Space(models.Model):
-    HALL = "HALL"
-    CLASSROOM = "CLASS"
-    LAB = "LAB"
-
-    TYPE_CHOICES = [
-        (HALL, "Hall"),
-        (CLASSROOM, "Classroom"),
-        (LAB, "Lab"),
-    ]
-
     name = models.CharField(max_length=100)
-    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    
+    # === FINAL: Dynamic Link to SpaceType ===
+    # This replaces the temporary CharField.
+    type = models.ForeignKey(
+        SpaceType, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='spaces'
+    )
+    
     location = models.CharField(max_length=100, blank=True)
     capacity = models.PositiveIntegerField()
     description = models.TextField(blank=True)
     
-    # === NEW: Link Facilities to Space ===
-    # Defines what equipment this specific hall HAS.
+    # === Image Field for Dashboard ===
+    image = models.ImageField(upload_to='spaces/', blank=True, null=True)
+
+    # === Link Facilities to Space ===
     facilities = models.ManyToManyField(Facility, blank=True, related_name="spaces")
 
     # HOD / Lab Incharge / Admin responsible
@@ -45,7 +53,9 @@ class Space(models.Model):
     )
 
     def __str__(self):
-        return self.name
+        # Safety check: if type is None, show "Uncategorized"
+        type_name = self.type.name if self.type else "Uncategorized"
+        return f"{self.name} ({type_name})"
 
 
 class Booking(models.Model):
@@ -80,7 +90,7 @@ class Booking(models.Model):
     # Stores the Faculty Name for Student Bookings
     faculty_in_charge = models.CharField(max_length=150, blank=True, null=True)
     
-    # === NEW: User selects specific facilities for THIS booking ===
+    # === User selects specific facilities for THIS booking ===
     requested_facilities = models.ManyToManyField(Facility, blank=True)
 
     status = models.CharField(
