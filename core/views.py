@@ -5,7 +5,7 @@ from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm 
 from django.contrib.auth.models import User, Group
-from django.db.models import Q, ProtectedError # Added ProtectedError
+from django.db.models import Q, ProtectedError
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -890,6 +890,18 @@ def upload_timetable(request):
         sem_start = parse_date(request.POST.get("sem_start"))
         sem_end = parse_date(request.POST.get("sem_end"))
         subject = request.POST.get("subject")
+
+        # --- SECURITY FIX: DoS Protection ---
+        if not sem_start or not sem_end:
+             messages.error(request, "Invalid dates provided.")
+             return redirect("upload_timetable")
+
+        # Limit strictly to ~8 months (245 days)
+        max_duration = timedelta(days=245)
+        if (sem_end - sem_start) > max_duration:
+             messages.error(request, "Operation Aborted: Date range too large. Semester cannot exceed 8 months.")
+             return redirect("upload_timetable")
+        # ------------------------------------
 
         space = get_object_or_404(Space, id=space_id)
         current_date = sem_start
