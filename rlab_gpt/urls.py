@@ -8,12 +8,18 @@ urlpatterns = [
     # --- 1. Custom Admin Paths ---
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     
-    # NEW: Full History Page
+    # Full History Page
     path('admin/history/', views.booking_history, name='booking_history'),
 
-    # NEW: Resource Management (Add Spaces/Facilities)
+    # === Resource Management (Spaces & Types) ===
     path('admin/resources/', views.manage_resources, name='manage_resources'),
+    
+    # Space Actions
     path('admin/resources/delete/<int:pk>/', views.delete_space, name='delete_space'),
+    
+    # NEW: Venue Type Actions (Delete & Edit)
+    path('admin/resources/type/delete/<int:pk>/', views.delete_space_type, name='delete_space_type'),
+    path('admin/resources/type/edit/<int:pk>/', views.edit_space_type, name='edit_space_type'),
 
     # Timetable Management
     path('admin/timetable/', views.upload_timetable, name='upload_timetable'),

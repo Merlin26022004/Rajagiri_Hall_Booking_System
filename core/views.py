@@ -5,7 +5,7 @@ from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm 
 from django.contrib.auth.models import User, Group
-from django.db.models import Q
+from django.db.models import Q, ProtectedError # Added ProtectedError
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -16,10 +16,9 @@ from django.core.paginator import Paginator
 from django.conf import settings
 
 # === IMPORTS ===
-from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking, Facility
+from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking, Facility, SpaceType
 from .decorators import approval_required
-# === NEW IMPORT FOR DASHBOARD ===
-from .forms import SpaceForm, FacilityForm
+from .forms import SpaceForm, FacilityForm, SpaceTypeForm
 
 # ================= Helpers =================
 
@@ -306,20 +305,17 @@ def cancel_booking(request, booking_id):
 def admin_dashboard(request):
     """
     Operational Dashboard: Shows only ACTIONABLE items & Immediate Upcoming.
-    1. Pending Bookings (Work Queue)
-    2. Waiting Room (User Queue)
-    3. Upcoming Approved Bookings (Operational Awareness - Next 7 Days)
     """
     today = timezone.localdate()
     next_week = today + timedelta(days=7)
 
-    # 1. WAITING ROOM (Users without groups)
+    # 1. WAITING ROOM
     waiting_users = User.objects.filter(groups__isnull=True, is_active=True).exclude(is_superuser=True)
 
-    # 2. PENDING BOOKINGS ONLY (Work Queue)
+    # 2. PENDING BOOKINGS
     pending_bookings = Booking.objects.filter(status=Booking.STATUS_PENDING).select_related("space", "requested_by").order_by("date", "start_time")
 
-    # 3. UPCOMING SCHEDULE (Approved Bookings: Today -> +7 Days)
+    # 3. UPCOMING SCHEDULE
     upcoming_bookings = Booking.objects.filter(
         status=Booking.STATUS_APPROVED, 
         date__range=[today, next_week]
@@ -372,7 +368,7 @@ def booking_history(request):
     if space_id: qs = qs.filter(space_id=space_id)
     if date_val: qs = qs.filter(date=date_val)
 
-    # Pagination (Show 20 per page)
+    # Pagination
     paginator = Paginator(qs, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -388,7 +384,6 @@ def booking_history(request):
 
 @user_passes_test(is_dashboard_authorized)
 def assign_role(request, user_id):
-    """Assigns a 'Waiting Room' user to a Group."""
     if request.method == "POST":
         target_user = get_object_or_404(User, id=user_id)
         role = request.POST.get("role")
@@ -404,12 +399,8 @@ def assign_role(request, user_id):
 
 @user_passes_test(is_dashboard_authorized)
 def reject_user(request, user_id):
-    """
-    Deletes a user who is in the Waiting Room (Spam/Unauthorized).
-    """
     if request.method == "POST":
         user_to_delete = get_object_or_404(User, id=user_id)
-        # Security: Only delete if they have NO groups (Waiting Room check)
         if not user_to_delete.groups.exists() and not user_to_delete.is_superuser:
             username = user_to_delete.username
             user_to_delete.delete()
@@ -474,7 +465,6 @@ def admin_cancel_booking(request, booking_id):
         booking.status = Booking.STATUS_CANCELLED
         booking.save()
         
-        # Notify User
         if booking.requested_by != request.user:
             if booking.requested_by.email:
                 send_notification_email(
@@ -491,7 +481,6 @@ def admin_cancel_booking(request, booking_id):
             
         messages.success(request, "Booking cancelled.")
         
-    # Redirect back to where the user came from (Dashboard OR History)
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
 
 # ================= RESOURCE MANAGEMENT (NEW) =================
@@ -499,19 +488,19 @@ def admin_cancel_booking(request, booking_id):
 @user_passes_test(is_dashboard_authorized)
 def manage_resources(request):
     """
-    Dashboard for adding/viewing Spaces and Facilities.
-    Handles Image Uploads via SpaceForm.
+    Dashboard for adding/viewing Spaces, Facilities, and Venue Types.
     """
     spaces = Space.objects.all()
     facilities = Facility.objects.all()
+    space_types = SpaceType.objects.all() 
     
     space_form = SpaceForm()
     facility_form = FacilityForm()
+    type_form = SpaceTypeForm() 
 
     if request.method == 'POST':
-        # Check which form was submitted based on the button name
         if 'add_space' in request.POST:
-            space_form = SpaceForm(request.POST, request.FILES) # request.FILES is crucial for images
+            space_form = SpaceForm(request.POST, request.FILES)
             if space_form.is_valid():
                 space_form.save()
                 messages.success(request, "New Space added successfully!")
@@ -526,24 +515,81 @@ def manage_resources(request):
                 messages.success(request, "New Facility added successfully!")
                 return redirect('manage_resources')
 
+        elif 'add_type' in request.POST: 
+            type_form = SpaceTypeForm(request.POST)
+            if type_form.is_valid():
+                type_form.save()
+                messages.success(request, "New Venue Type added successfully!")
+                return redirect('manage_resources')
+            else:
+                messages.error(request, "Error adding type. Name must be unique.")
+
     context = {
         'spaces': spaces,
         'facilities': facilities,
+        'space_types': space_types, 
         'space_form': space_form,
         'facility_form': facility_form,
+        'type_form': type_form, 
     }
     return render(request, 'manage_resources.html', context)
 
 @user_passes_test(is_dashboard_authorized)
 def delete_space(request, pk):
-    """
-    Deletes a space. Restricted to Dashboard Authorized users.
-    """
     space = get_object_or_404(Space, pk=pk)
     space_name = space.name
     space.delete()
     messages.warning(request, f"Space '{space_name}' has been deleted.")
     return redirect('manage_resources')
+
+@user_passes_test(is_dashboard_authorized)
+def delete_space_type(request, pk):
+    """
+    Deletes a Venue Type. 
+    Strictly protected: will not delete if spaces are linked.
+    """
+    venue_type = get_object_or_404(SpaceType, pk=pk)
+    type_name = venue_type.name
+    
+    try:
+        venue_type.delete()
+        messages.warning(request, f"Venue Type '{type_name}' has been removed.")
+    except ProtectedError:
+        messages.error(
+            request, 
+            f"Cannot delete '{type_name}' because there are existing spaces assigned to this type. "
+            "Please delete or reassign those spaces first."
+        )
+        
+    return redirect('manage_resources')
+
+@user_passes_test(is_dashboard_authorized)
+def edit_space_type(request, pk):
+    """
+    Renders a dedicated page or simple form to edit a SpaceType name.
+    For simplicity, this example just renders the manage page with a 'edit_mode' flag,
+    or you can create a separate tiny template. 
+    Here, we'll keep it simple: Just update the name via a POST request if accessing a specific URL,
+    or redirect to a dedicated edit page.
+    
+    Since we don't have a separate edit page, let's implement a simple direct update view 
+    that assumes a form submission or just redirects back for now.
+    """
+    # For a full edit feature, you'd usually have a separate template.
+    # To keep it single-page, we can't easily pop up a modal without JS.
+    # Let's auto-generate a simple form page for editing.
+    venue_type = get_object_or_404(SpaceType, pk=pk)
+    
+    if request.method == 'POST':
+        form = SpaceTypeForm(request.POST, instance=venue_type)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Venue Type updated to '{venue_type.name}'")
+            return redirect('manage_resources')
+    else:
+        form = SpaceTypeForm(instance=venue_type)
+
+    return render(request, 'edit_space_type.html', {'form': form, 'type': venue_type})
 
 # ================= API & Calendar =================
 
@@ -563,7 +609,6 @@ def api_unavailable_dates(request):
 @require_GET
 @login_required
 def api_space_facilities(request):
-    """Returns the list of facilities available for a specific space."""
     space_id = request.GET.get("space_id")
     if not space_id:
         return JsonResponse([], safe=False)
