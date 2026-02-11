@@ -19,20 +19,26 @@
                         
                         <div class="col-md-12">
                             <label class="label-material">Select Space</label>
-                            <select name="space_id" id="spaceSelect" class="form-select form-control-material" required>
-                                <option value="">-- Choose Space --</option>
-                                {% for space in spaces %}
-                                <option value="{{ space.id }}"
-                                    {% if selected_space and selected_space.id == space.id %}selected{% endif %}>
-                                    {{ space.name }} ({{ space.get_type_display }})
-                                </option>
-                                {% endfor %}
-                            </select>
+                            <div class="modern-input-group">
+                                <i class="bi bi-building modern-input-icon"></i>
+                                <select name="space_id" id="spaceSelect" class="form-select" required>
+                                    <option value="" disabled selected>-- Choose Space --</option>
+                                    {% for space in spaces %}
+                                    <option value="{{ space.id }}"
+                                        {% if selected_space and selected_space.id == space.id %}selected{% endif %}>
+                                        {{ space.name }} {% if space.type %}({{ space.type.name }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
 
                         <div class="col-md-12">
                             <label class="label-material">Date</label>
-                            <input type="date" name="date" id="dateInput" class="form-control form-control-material" required>
+                            <div class="modern-input-group">
+                                <i class="bi bi-calendar-event modern-input-icon"></i>
+                                <input type="date" name="date" id="dateInput" class="form-control" required>
+                            </div>
                             <div id="existingSlots" class="form-text text-danger mt-2 d-none"></div>
                             <small class="text-muted d-block mt-1 ms-1" style="font-size: 0.8rem;">
                                 Same-day bookings allowed if time does not overlap.
@@ -41,21 +47,33 @@
 
                         <div class="col-md-6">
                             <label class="label-material">Start Time</label>
-                            <input type="time" name="start_time" class="form-control form-control-material" required>
+                            <div class="modern-input-group">
+                                <i class="bi bi-clock modern-input-icon"></i>
+                                <input type="time" name="start_time" class="form-control" required>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="label-material">End Time</label>
-                            <input type="time" name="end_time" class="form-control form-control-material" required>
+                            <div class="modern-input-group">
+                                <i class="bi bi-clock-history modern-input-icon"></i>
+                                <input type="time" name="end_time" class="form-control" required>
+                            </div>
                         </div>
 
                         <div class="col-md-12">
                             <label class="label-material">Expected Count</label>
-                            <input type="number" name="expected_count" class="form-control form-control-material" placeholder="ex. 100" required>
+                            <div class="modern-input-group">
+                                <i class="bi bi-people modern-input-icon"></i>
+                                <input type="number" name="expected_count" class="form-control" placeholder="ex. 100" required>
+                            </div>
                         </div>
 
                         <div class="col-md-12">
                             <label class="label-material">Purpose / Event Name</label>
-                            <textarea name="purpose" rows="2" class="form-control form-control-material" placeholder="e.g. Annual Tech Symposium" required></textarea>
+                            <div class="description-group">
+                                <i class="bi bi-card-text modern-input-icon"></i>
+                                <textarea name="purpose" rows="2" class="form-control" placeholder="e.g. Annual Tech Symposium" required></textarea>
+                            </div>
                         </div>
 
                         <div class="section-divider"></div>
@@ -77,14 +95,16 @@
                         <div class="col-md-12">
                             <div class="p-3 rounded border border-warning" style="background-color: #fff9e6;">
                                 <label class="label-material text-dark mb-1">Faculty In-Charge (Required)</label>
-                                <input type="text" 
-                                       name="faculty_in_charge" 
-                                       id="faculty_in_charge" 
-                                       class="form-control form-control-material" 
-                                       style="background-color: #fff;"
-                                       placeholder="Enter name of the Professor..." 
-                                       required>
-                                <small class="text-muted d-block mt-1">
+                                <div class="modern-input-group" style="background: #fff; border: 1px solid #ffcc00;">
+                                    <i class="bi bi-person-badge modern-input-icon text-warning"></i>
+                                    <input type="text" 
+                                           name="faculty_in_charge" 
+                                           id="faculty_in_charge" 
+                                           class="form-control" 
+                                           placeholder="Enter name of the Professor..." 
+                                           required>
+                                </div>
+                                <small class="text-muted d-block mt-2">
                                     <i class="bi bi-info-circle me-1"></i>Since you are a student, you must specify the faculty member who approved this.
                                 </small>
                             </div>

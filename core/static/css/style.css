@@ -1,6 +1,5 @@
 /* ================= GLOBAL LAYOUT ================= */
 html, body {
-    /* Critical Fix: Ensures footer pushes to bottom even on short pages */
     min-height: 100vh;
     margin: 0;
 }
@@ -12,13 +11,10 @@ body {
     color: #222;
 }
 main {
-    /* This allows the main content to grow and push the footer down */
     flex: 1 0 auto;
-    /* Minimal padding - just enough clearance from footer */
     padding-bottom: 1.5rem;
 }
 .footer {
-    /* Prevents the footer from shrinking */
     flex-shrink: 0;
     background: var(--rajagiri-green);
     color: #fff;
@@ -30,11 +26,11 @@ main {
 
 /* ================= COLOR VARIABLES ================= */
 :root {
-    --rajagiri-green: #007D31;      /* Primary Action Color */
-    --rajagiri-maroon: #145008;     /* Dark Base / Nav */
-    --rajagiri-gold:   #F4C542;     /* Accents */
-    --rajagiri-cream:  #FFF7E6;     /* Page Background */
-    --rajagiri-dark:   #1A1A1A;     /* Text */
+    --rajagiri-green: #007D31;
+    --rajagiri-maroon: #145008;
+    --rajagiri-gold:   #F4C542;
+    --rajagiri-cream:  #FFF7E6;
+    --rajagiri-dark:   #1A1A1A;
 }
 
 /* ================= PAGE TOP BAR ================= */
@@ -65,11 +61,7 @@ main {
 
 /* ================= HERO SECTION ================= */
 .hero {
-    background: linear-gradient(
-        180deg,
-        var(--rajagiri-cream) 0%,
-        #ffdd9b 100%
-    ) !important;
+    background: linear-gradient(180deg, var(--rajagiri-cream) 0%, #ffdd9b 100%) !important;
     padding: 60px 0;
     text-align: left;
 }
@@ -79,7 +71,7 @@ main {
     font-weight: 700;
 }
 
-/* ================= CLASSIC BUTTON ================= */
+/* ================= BUTTONS ================= */
 .btn-book {
     background-color: var(--rajagiri-green) !important;
     border: none;
@@ -100,7 +92,22 @@ main {
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-/* ================= STANDARD CARDS ================= */
+.btn-google {
+    background-color: var(--rajagiri-green);
+    color: white;
+    height: 50px;
+    border-radius: 25px;
+    font-weight: 600;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.btn-google:hover {
+    background-color: var(--rajagiri-maroon);
+    color: white;
+}
+
+/* ================= CARDS ================= */
 .space-card {
     border-radius: 12px;
     border: 2px solid rgba(0,0,0,0.06);
@@ -115,6 +122,16 @@ main {
     border-color: var(--rajagiri-maroon);
 }
 
+.card-google {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+    padding: 30px;
+    transition: all 0.3s ease;
+    margin-bottom: 2rem;
+}
+
 .section-title {
     font-size: 1.6rem;
     padding-left: 12px;
@@ -123,24 +140,8 @@ main {
     color: var(--rajagiri-maroon);
 }
 
-/* ========================================================== */
-/* MATERIAL DESIGN (Restored to Stable Sizes)                */
-/* ========================================================== */
+/* ================= MATERIAL DESIGN INPUT SYSTEM ================= */
 
-/* 1. The Card */
-.card-google {
-    background: #ffffff;
-    border-radius: 12px;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
-    padding: 30px;
-    transition: all 0.3s ease;
-    /* REMOVED: height: 100%; - This was causing the footer overlap */
-    /* Optimized bottom margin - just enough to clear footer */
-    margin-bottom: 2rem;
-}
-
-/* 2. The Labels */
 .label-material {
     display: block;
     font-size: 0.75rem;
@@ -151,7 +152,7 @@ main {
     margin-bottom: 6px;
 }
 
-/* 3. Modern Input Group (STABLE) */
+/* Standard Input Container */
 .modern-input-group {
     display: flex;
     align-items: center;
@@ -160,7 +161,6 @@ main {
     border-radius: 8px;
     padding: 0 12px; 
     transition: all 0.2s ease;
-    overflow: hidden;
     height: 50px;
 }
 
@@ -174,92 +174,114 @@ main {
     font-size: 1.1rem;
     margin-right: 12px;
     flex-shrink: 0;
+    align-self: center;
 }
 
+/* All inputs inside container are invisible wrappers */
+.modern-input-group input.form-control,
+.modern-input-group select.form-select,
 .modern-input-group input, 
 .modern-input-group select {
-    border: none;
+    border: none !important;
     outline: none !important;
     box-shadow: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
     width: 100%;
-    background: transparent;
     color: #3c4043;
     font-weight: 500;
     font-size: 1rem;
-    padding: 0;
+    padding: 0 !important;
+    margin: 0 !important;
     height: 100%;
 }
 
-/* 4. Description Box Override */
+.modern-input-group input:focus,
+.modern-input-group select:focus {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Textarea Container - Taller with proper alignment */
 .description-group {
-    height: auto !important;
-    min-height: 120px;
+    display: flex;
     align-items: flex-start;
+    background-color: #fff;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
     padding: 12px;
+    transition: all 0.2s ease;
+    min-height: 120px;
 }
 
+.description-group:focus-within {
+    border-color: var(--rajagiri-green);
+    box-shadow: 0 0 0 3px rgba(0, 125, 49, 0.1);
+}
+
+.description-group .modern-input-icon {
+    margin-right: 12px;
+    padding-top: 4px; /* Fix alignment for textarea */
+    color: #9aa0a6;
+    font-size: 1.1rem;
+}
+
+.description-group textarea.form-control,
 .description-group textarea {
-    min-height: 100px;
-    resize: none;
-    border: none;
-    outline: none;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
     width: 100%;
-    padding: 0;
-    margin-top: 2px;
-}
-
-/* 5. Space List Items (Compact View) */
-.space-item-row {
-    transition: transform 0.2s, box-shadow 0.2s;
-    border-left: 4px solid var(--rajagiri-green) !important;
-    margin-bottom: 12px;
-    padding: 12px !important;
-}
-
-.space-item-row:hover {
-    transform: translateX(3px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08) !important;
-}
-
-/* 6. Thumbnails */
-.space-thumb img, 
-.thumb-placeholder {
-    width: 50px;
-    height: 50px;
-    object-fit: cover;
-    border-radius: 6px;
-}
-
-/* 7. Facilities Container (Scrollable) */
-.facilities-container {
-    max-height: 200px;
-    overflow-y: auto;
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef !important;
-}
-
-/* FIXED: Simple checkbox alignment */
-.facilities-container .form-check {
-    margin-bottom: 0;
-    padding-left: 0;
-}
-
-.facilities-container .form-check-input {
-    margin-top: 0;
-    margin-right: 0;
-    float: none;
-    position: relative;
-    flex-shrink: 0;
-}
-
-.facilities-container .form-check-label {
-    font-size: 0.9rem;
+    min-height: 96px;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.5;
     color: #3c4043;
-    cursor: pointer;
-    padding-top: 1px; /* Fine-tune vertical alignment */
+    font-weight: 400;
+    resize: none;
 }
 
-/* 7b. File Input Alignment Fix */
+.description-group textarea::placeholder {
+    color: #9aa0a6;
+    opacity: 1;
+}
+
+.description-group textarea:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* ================= SPECIAL INPUT TYPES ================= */
+
+/* Date & Time Inputs */
+.modern-input-group input[type="date"],
+.modern-input-group input[type="time"] {
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    appearance: auto;
+    padding-right: 8px;
+    cursor: pointer;
+    color: #3c4043 !important;
+}
+
+.modern-input-group input[type="date"]::-webkit-calendar-picker-indicator,
+.modern-input-group input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+    padding-left: 4px;
+}
+
+.modern-input-group input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.modern-input-group input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* File Input */
 .modern-input-group input[type="file"] {
     padding: 0;
     height: auto;
@@ -285,79 +307,55 @@ main {
     background: #e9ecef;
 }
 
-/* 7c. Date Input Placeholder Fix */
-.modern-input-group input[type="date"]:not(:focus):invalid,
-.modern-input-group input[type="date"]:not(:focus):placeholder-shown {
-    color: #9aa0a6;
+/* ================= UTILITIES ================= */
+
+.space-item-row {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid var(--rajagiri-green) !important;
+    margin-bottom: 12px;
+    padding: 12px !important;
 }
 
-.modern-input-group input[type="date"]:not(:focus):invalid::before,
-.modern-input-group input[type="date"]:not(:focus):not([value])::before {
-    content: attr(data-placeholder);
-    color: #9aa0a6;
-    font-weight: 400;
+.space-item-row:hover {
+    transform: translateX(3px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08) !important;
 }
 
-.modern-input-group input[type="date"]:focus::before,
-.modern-input-group input[type="date"]:valid::before {
-    content: none;
+.space-thumb img, 
+.thumb-placeholder {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 6px;
 }
 
-/* Alternative: Show text when empty */
-.modern-input-group input[type="date"] {
+.facilities-container {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef !important;
+}
+
+.facilities-container .form-check {
+    margin-bottom: 0;
+    padding-left: 0;
+}
+
+.facilities-container .form-check-input {
+    margin-top: 0;
+    margin-right: 0;
+    float: none;
     position: relative;
+    flex-shrink: 0;
+}
+
+.facilities-container .form-check-label {
+    font-size: 0.9rem;
     color: #3c4043;
-}
-
-.modern-input-group input[type="date"]::-webkit-datetime-edit-text,
-.modern-input-group input[type="date"]::-webkit-datetime-edit-month-field,
-.modern-input-group input[type="date"]::-webkit-datetime-edit-day-field,
-.modern-input-group input[type="date"]::-webkit-datetime-edit-year-field {
-    color: #3c4043;
-}
-
-/* When date input is empty, show lighter color */
-.modern-input-group input[type="date"]:not(:focus):not(:valid)::-webkit-datetime-edit {
-    color: transparent;
-}
-
-/* 7c. Date and Time Input Fix - Show Native Pickers */
-.modern-input-group input[type="date"],
-.modern-input-group input[type="time"] {
-    /* Allow native date/time picker to show */
-    -webkit-appearance: auto;
-    -moz-appearance: auto;
-    appearance: auto;
-    
-    /* Proper sizing */
-    padding-right: 8px;
     cursor: pointer;
-    
-    /* Ensure text is visible */
-    color: #3c4043 !important;
-    font-size: 1rem;
+    padding-top: 1px;
 }
 
-/* Show calendar/clock icon properly */
-.modern-input-group input[type="date"]::-webkit-calendar-picker-indicator,
-.modern-input-group input[type="time"]::-webkit-calendar-picker-indicator {
-    cursor: pointer;
-    opacity: 0.7;
-    padding-left: 4px;
-}
-
-.modern-input-group input[type="date"]::-webkit-calendar-picker-indicator:hover,
-.modern-input-group input[type="time"]::-webkit-calendar-picker-indicator:hover {
-    opacity: 1;
-}
-
-/* Placeholder-like text for empty date inputs */
-.modern-input-group input[type="date"]:invalid,
-.modern-input-group input[type="time"]:invalid {
-    color: #9aa0a6;
-}
-
-/* 8. Utilities */
 .rajagiri-maroon-text {
     color: var(--rajagiri-maroon);
 }
@@ -380,22 +378,8 @@ main {
     margin: 30px 0;
 }
 
-.btn-google {
-    background-color: var(--rajagiri-green);
-    color: white;
-    height: 50px;
-    border-radius: 25px;
-    font-weight: 600;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-}
+/* ================= DANGER CARDS ================= */
 
-.btn-google:hover {
-    background-color: var(--rajagiri-maroon);
-    color: white;
-}
-
-/* 9. Danger Card INSIDE Main Card - COMPACT DESIGN */
 .card-danger-inner {
     background-color: #fff5f5;
     border: 1px solid #fed7d7;
@@ -410,7 +394,6 @@ main {
     box-shadow: 0 2px 8px rgba(220, 53, 69, 0.08);
 }
 
-/* Keep old card-danger for backwards compatibility */
 .card-danger {
     background-color: #fff5f5;
     border: 1px solid #fed7d7;
@@ -432,4 +415,17 @@ main {
 .modern-input-group.border-danger:focus-within {
     border-color: #e53e3e !important;
     box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1) !important;
+}
+
+/* ================= BROWSER AUTOFILL FIX ================= */
+
+.modern-input-group input:-webkit-autofill,
+.modern-input-group input:-webkit-autofill:hover,
+.modern-input-group input:-webkit-autofill:focus,
+.modern-input-group textarea:-webkit-autofill,
+.modern-input-group textarea:-webkit-autofill:hover,
+.modern-input-group textarea:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    box-shadow: 0 0 0 1000px white inset !important;
+    border: none !important;
 }
