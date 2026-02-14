@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google", # Google Provider
+    "tailwind",
 ]
 
 MIDDLEWARE = [

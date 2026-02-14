@@ -146,13 +146,14 @@
                         <th class="ps-4 py-3 border-0">When</th>
                         <th class="py-3 border-0">Where & Why</th>
                         <th class="py-3 border-0">User & Reference</th>
-                        <th class="py-3 border-0">Status</th>
+                        <th class="py-3 border-0">Deadline (Biz Clock)</th> 
                         <th class="text-end pe-4 py-3 border-0">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="border-top-0">
                     {% for b in bookings %}
-                    <tr class="bg-warning bg-opacity-10"> <td class="ps-4 py-3">
+                    <tr class="bg-warning bg-opacity-10"> 
+                        <td class="ps-4 py-3">
                             <div class="fw-bold text-dark">{{ b.date|date:"M d" }}</div>
                             <div class="small text-muted">{{ b.start_time|time:"H:i" }} - {{ b.end_time|time:"H:i" }}</div>
                         </td>
@@ -175,9 +176,26 @@
                                 </div>
                             </div>
                         </td>
+                        
                         <td class="py-3">
-                            <span class="badge bg-warning text-dark border border-warning rounded-pill px-3 py-2">Pending</span>
+                            {% if b.approval_deadline %}
+                                {% if b.approval_deadline < now %}
+                                    <span class="badge bg-danger rounded-pill">Expired</span>
+                                    <div class="small text-danger fw-bold mt-1" style="font-size: 0.7rem;">Auto-Reject Soon</div>
+                                {% else %}
+                                    <div class="d-flex align-items-center text-danger fw-bold">
+                                        <i class="bi bi-clock-history me-1"></i>
+                                        {{ b.approval_deadline|timeuntil:now }} left
+                                    </div>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">
+                                        Due: {{ b.approval_deadline|date:"D H:i" }}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">No Deadline</span>
+                            {% endif %}
                         </td>
+
                         <td class="text-end pe-4 py-3">
                             <form method="post" action="{% url 'approve_booking' b.id %}" class="d-inline">
                                 {% csrf_token %}
