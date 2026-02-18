@@ -20,6 +20,7 @@
                     <select name="status" class="form-select border-light bg-light">
                         <option value="">All Statuses</option>
                         <option value="Approved" {% if request.GET.status == 'Approved' %}selected{% endif %}>Approved</option>
+                        <option value="Pending" {% if request.GET.status == 'Pending' %}selected{% endif %}>Pending</option>
                         <option value="Waitlisted" {% if request.GET.status == 'Waitlisted' %}selected{% endif %}>Waitlisted</option>
                         <option value="Rejected" {% if request.GET.status == 'Rejected' %}selected{% endif %}>Rejected</option>
                         <option value="Cancelled" {% if request.GET.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
@@ -52,7 +53,8 @@
                     <tr>
                         <th class="ps-4 py-3 border-0">Date & Time</th>
                         <th class="py-3 border-0">Venue</th>
-                        <th class="py-3 border-0">Priority & Type</th> <th class="py-3 border-0">Requested By</th>
+                        <th class="py-3 border-0">Priority & Type</th> 
+                        <th class="py-3 border-0">Requested By</th>
                         <th class="py-3 border-0">Status</th>
                         <th class="text-end pe-4 py-3 border-0">Action</th>
                     </tr>
@@ -110,14 +112,27 @@
                                 <span class="badge bg-warning text-dark bg-opacity-25 rounded-pill">Pending</span>
                             {% endif %}
                         </td>
-                        <td class="text-end pe-4 py-3">
-                            {% if b.can_cancel %}
-                            <form method="post" action="{% url 'admin_cancel_booking' b.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this booking? This will notify the user.');">
-                                {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-danger rounded-pill fw-bold shadow-sm">
-                                    Cancel
-                                </button>
-                            </form>
+                        <td class="text-end pe-4 py-3 text-nowrap">
+                            {% if b.status == 'Pending' or b.status == 'Waitlisted' %}
+                                <form method="post" action="{% url 'approve_booking' b.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success rounded-pill fw-bold shadow-sm me-1">
+                                        Approve
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'reject_booking' b.id %}" class="d-inline" onsubmit="return confirm('Reject this booking?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger rounded-pill fw-bold shadow-sm">
+                                        Reject
+                                    </button>
+                                </form>
+                            {% elif b.can_cancel %}
+                                <form method="post" action="{% url 'admin_cancel_booking' b.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this booking? This will notify the user.');">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill fw-bold shadow-sm">
+                                        Cancel
+                                    </button>
+                                </form>
                             {% else %}
                                 <span class="text-muted small" title="Cannot cancel past or rejected bookings">-</span>
                             {% endif %}
@@ -135,11 +150,11 @@
             <nav>
                 <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
-                        <li class="page-item"><a class="page-link rounded-circle mx-1" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+                        <li class="page-item"><a class="page-link rounded-circle mx-1" href="?page={{ page_obj.previous_page_number }}&status={{ request.GET.status }}&space_id={{ request.GET.space_id }}&date={{ request.GET.date }}">&laquo;</a></li>
                     {% endif %}
                     <li class="page-item disabled"><span class="page-link border-0">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
                     {% if page_obj.has_next %}
-                        <li class="page-item"><a class="page-link rounded-circle mx-1" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+                        <li class="page-item"><a class="page-link rounded-circle mx-1" href="?page={{ page_obj.next_page_number }}&status={{ request.GET.status }}&space_id={{ request.GET.space_id }}&date={{ request.GET.date }}">&raquo;</a></li>
                     {% endif %}
                 </ul>
             </nav>
