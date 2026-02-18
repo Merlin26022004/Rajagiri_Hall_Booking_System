@@ -59,17 +59,26 @@ class Space(models.Model):
 
 class Booking(models.Model):
     STATUS_PENDING = "Pending"
-    STATUS_WAITLISTED = "Waitlisted" # <--- NEW STATUS
+    STATUS_WAITLISTED = "Waitlisted"
     STATUS_APPROVED = "Approved"
     STATUS_REJECTED = "Rejected"
     STATUS_CANCELLED = "Cancelled"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
-        (STATUS_WAITLISTED, "Waitlisted"), # <--- Added here
+        (STATUS_WAITLISTED, "Waitlisted"),
         (STATUS_APPROVED, "Approved"),
         (STATUS_REJECTED, "Rejected"),
         (STATUS_CANCELLED, "Cancelled"),
+    ]
+
+    # === FEATURE 1: PRIORITY RESOURCE TYPES ===
+    RESOURCE_INTERNAL = 'Internal'
+    RESOURCE_EXTERNAL = 'External'
+
+    RESOURCE_TYPE_CHOICES = [
+        (RESOURCE_INTERNAL, 'Internal (Standard)'),
+        (RESOURCE_EXTERNAL, 'External (High Priority)'),
     ]
 
     space = models.ForeignKey(
@@ -91,6 +100,16 @@ class Booking(models.Model):
     # Stores the Faculty Name for Student Bookings
     faculty_in_charge = models.CharField(max_length=150, blank=True, null=True)
     
+    # === NEW: Resource Person Details (For Priority Logic) ===
+    resource_type = models.CharField(
+        max_length=10, 
+        choices=RESOURCE_TYPE_CHOICES, 
+        default=RESOURCE_INTERNAL,
+        help_text="External events get higher priority in the waitlist."
+    )
+    resource_name = models.CharField(max_length=100, blank=True, help_text="Required for External events")
+    resource_number = models.CharField(max_length=15, blank=True, help_text="Contact number for coordination")
+
     # === User selects specific facilities for THIS booking ===
     requested_facilities = models.ManyToManyField(Facility, blank=True)
 
@@ -105,17 +124,16 @@ class Booking(models.Model):
         related_name="approved_bookings",
     )
 
-    # === NEW FIELDS FOR BUSINESS CLOCK LOGIC ===
-    # Stores the calculated deadline (skipping weekends/holidays)
+    # === BUSINESS CLOCK LOGIC ===
     approval_deadline = models.DateTimeField(null=True, blank=True)
-    
-    # Flags if the system auto-rejected this due to timeout
     auto_expired = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-date", "start_time", "created_at"] # Added created_at to order queue
+        # Sort by Date -> Start Time -> Priority (External first) -> Created At
+        # Note: 'External' comes before 'Internal' alphabetically, so resource_type ascending works.
+        ordering = ["-date", "start_time", "resource_type", "created_at"]
 
     def __str__(self):
         return f"{self.space.name} on {self.date} ({self.status})"
@@ -125,40 +143,58 @@ class Booking(models.Model):
     def queue_position(self):
         """
         Returns the user's position in the queue for this specific slot.
-        1 = Currently under review (Pending)
-        2+ = Waitlisted behind others
+        Sorting Logic:
+        1. Priority: External requests jump ahead of Internal requests.
+        2. Timestamp: FCFS within the same priority level.
         """
-        # Find all active requests for this slot
+        # Find all active requests for this slot (Pending or Waitlisted)
         overlapping_bookings = Booking.objects.filter(
             space=self.space,
             date=self.date,
             status__in=[self.STATUS_PENDING, self.STATUS_WAITLISTED],
             start_time__lt=self.end_time,
             end_time__gt=self.start_time
-        ).order_by('created_at')
+        ).order_by('resource_type', 'created_at') # Priority Sort
 
         # Find where 'self' is in this list
         for index, booking in enumerate(overlapping_bookings):
             if booking.id == self.id:
-                return index + 1 # 1-based index (1st, 2nd, 3rd...)
+                return index + 1 # 1-based index
         return 0
 
     @property
-    def current_holder(self):
+    def current_holder_booking(self):
         """
-        Returns the User object of the person currently at Position #1 (Pending).
-        Useful for Waitlisted users to know who is blocking them.
+        Returns the actual Booking object that is 'blocking' this request.
+        Priority check:
+        1. Is there an APPROVED booking? (The slot is taken)
+        2. Is there a PENDING/WAITLISTED booking ahead of me? (The queue blocker)
         """
-        primary_booking = Booking.objects.filter(
+        # 1. Check for Approved Booking (The Hard Block)
+        approved_booking = Booking.objects.filter(
             space=self.space,
             date=self.date,
-            status=self.STATUS_PENDING,
+            status=self.STATUS_APPROVED,
             start_time__lt=self.end_time,
             end_time__gt=self.start_time
-        ).order_by('created_at').first()
+        ).first()
+        
+        if approved_booking:
+            return approved_booking
 
-        if primary_booking:
-            return primary_booking.requested_by
+        # 2. Check for Queue Leader (The Soft Block)
+        # If I am waitlisted, who is at Position #1?
+        first_in_queue = Booking.objects.filter(
+            space=self.space,
+            date=self.date,
+            status__in=[self.STATUS_PENDING, self.STATUS_WAITLISTED],
+            start_time__lt=self.end_time,
+            end_time__gt=self.start_time
+        ).order_by('resource_type', 'created_at').first()
+
+        if first_in_queue and first_in_queue.id != self.id:
+            return first_in_queue
+            
         return None
 
     # === TIME-AWARE CANCELLATION ===
@@ -180,7 +216,6 @@ class Booking(models.Model):
             return False
 
         # 3. Future/Valid Time -> Check Status
-        # Added WAITLISTED to allowed cancellation states
         return self.status in [self.STATUS_PENDING, self.STATUS_APPROVED, self.STATUS_WAITLISTED]
 
 

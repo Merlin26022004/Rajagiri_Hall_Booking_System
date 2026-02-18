@@ -76,6 +76,34 @@
                             </div>
                         </div>
 
+                        <div class="col-md-12">
+                            <div class="p-3 border rounded bg-light">
+                                <label class="label-material mb-2 text-primary fw-bold">Event Priority Type</label>
+                                <div class="modern-input-group mb-2">
+                                    <i class="bi bi-star-fill modern-input-icon text-warning"></i>
+                                    <select name="resource_type" id="resourceType" class="form-select">
+                                        <option value="Internal" selected>Internal (Standard Event)</option>
+                                        <option value="External">External (Guest/Dignitary) - High Priority</option>
+                                    </select>
+                                </div>
+                                <small class="text-muted ms-1"><i class="bi bi-info-circle"></i> External events get priority in the waitlist.</small>
+                                
+                                <div id="externalFields" class="row g-3 mt-2 d-none">
+                                    <div class="col-12">
+                                        <hr class="text-muted">
+                                        <h6 class="text-dark small fw-bold">External Resource Details</h6>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="small text-muted">Dignitary Name</label>
+                                        <input type="text" name="resource_name" id="resourceName" class="form-control form-control-sm" placeholder="e.g. CEO of Google">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="small text-muted">Contact Number</label>
+                                        <input type="text" name="resource_number" id="resourceNumber" class="form-control form-control-sm" placeholder="Phone for coordination">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="section-divider"></div>
 
                         <div class="col-md-12">
@@ -126,5 +154,4 @@
 </div>
 
 <script src="{% static 'js/booking.js' %}"></script>
-
 {% endblock %}

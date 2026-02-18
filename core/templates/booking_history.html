@@ -20,6 +20,7 @@
                     <select name="status" class="form-select border-light bg-light">
                         <option value="">All Statuses</option>
                         <option value="Approved" {% if request.GET.status == 'Approved' %}selected{% endif %}>Approved</option>
+                        <option value="Waitlisted" {% if request.GET.status == 'Waitlisted' %}selected{% endif %}>Waitlisted</option>
                         <option value="Rejected" {% if request.GET.status == 'Rejected' %}selected{% endif %}>Rejected</option>
                         <option value="Cancelled" {% if request.GET.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
@@ -51,14 +52,14 @@
                     <tr>
                         <th class="ps-4 py-3 border-0">Date & Time</th>
                         <th class="py-3 border-0">Venue</th>
-                        <th class="py-3 border-0">Requested By</th>
+                        <th class="py-3 border-0">Priority & Type</th> <th class="py-3 border-0">Requested By</th>
                         <th class="py-3 border-0">Status</th>
                         <th class="text-end pe-4 py-3 border-0">Action</th>
                     </tr>
                 </thead>
                 <tbody class="border-top-0">
                     {% for b in page_obj %}
-                    <tr>
+                    <tr class="{% if b.resource_type == 'External' %}bg-warning bg-opacity-10{% endif %}">
                         <td class="ps-4 py-3">
                             <div class="fw-bold text-dark">{{ b.date|date:"M d, Y" }}</div>
                             <div class="small text-muted">{{ b.start_time|time:"H:i" }} - {{ b.end_time|time:"H:i" }}</div>
@@ -66,12 +67,34 @@
                         <td class="py-3">
                             <span class="fw-bold">{{ b.space.name }}</span>
                         </td>
+                        
+                        <td class="py-3">
+                            {% if b.resource_type == 'External' %}
+                                <span class="badge bg-warning text-dark border border-warning mb-1">
+                                    <i class="bi bi-star-fill me-1"></i>External
+                                </span>
+                                {% if b.resource_name %}
+                                    <div class="small fw-bold text-dark">{{ b.resource_name }}</div>
+                                    <div class="small text-muted" style="font-size: 0.7rem;">
+                                        <i class="bi bi-telephone me-1"></i>{{ b.resource_number }}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-light text-muted border">Internal</span>
+                            {% endif %}
+                        </td>
+
                         <td class="py-3">
                             <div class="d-flex align-items-center">
                                 <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2 text-secondary fw-bold" style="width: 30px; height: 30px; font-size: 0.75rem;">
                                     {{ b.requested_by.username|slice:":1"|upper }}
                                 </div>
-                                <span class="small">{{ b.requested_by.username }}</span>
+                                <div>
+                                    <span class="small fw-bold d-block">{{ b.requested_by.username }}</span>
+                                    {% if b.faculty_in_charge %}
+                                        <span class="text-muted small" style="font-size: 0.7rem;">Ref: {{ b.faculty_in_charge }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </td>
                         <td class="py-3">
@@ -79,6 +102,8 @@
                                 <span class="badge bg-success bg-opacity-10 text-success rounded-pill">Approved</span>
                             {% elif b.status == "Rejected" %}
                                 <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">Rejected</span>
+                            {% elif b.status == "Waitlisted" %}
+                                <span class="badge bg-info text-dark rounded-pill">Waitlisted #{{ b.queue_position }}</span>
                             {% elif b.status == "Cancelled" %}
                                 <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill">Cancelled</span>
                             {% else %}
@@ -99,7 +124,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center py-5 text-muted">No records found.</td></tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted">No records found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

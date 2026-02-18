@@ -32,7 +32,12 @@
                     <td>{{ b.start_time }} – {{ b.end_time }}</td>
                     <td>
                         <strong>{{ b.space.name }}</strong>
-                        <div class="small text-muted">{{ b.space.get_type_display }}</div>
+                        <div class="small text-muted">
+                            {{ b.space.get_type_display }}
+                            {% if b.resource_type == 'External' %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7em;">External</span>
+                            {% endif %}
+                        </div>
                     </td>
                     <td class="small">{{ b.purpose }}</td>
                     <td>{{ b.expected_count }}</td>
@@ -41,6 +46,8 @@
                             <span class="badge bg-warning text-dark">Pending</span>
                         {% elif b.status == "Approved" %}
                             <span class="badge bg-success">Approved</span>
+                        {% elif b.status == "Waitlisted" %}
+                            <span class="badge bg-info text-dark">Waitlisted #{{ b.queue_position }}</span>
                         {% elif b.status == "Rejected" %}
                             <span class="badge bg-danger">Rejected</span>
                         {% elif b.status == "Cancelled" %}
@@ -51,14 +58,22 @@
                     </td>
                     <td class="text-end">
                         {% if b.can_cancel %}
+                        
+                        <a href="{% url 'reschedule_booking' b.id %}" 
+                           class="btn btn-sm btn-outline-primary me-1"
+                           title="Reschedule">
+                            <i class="bi bi-pencil-square"></i>
+                        </a>
+
                         <form method="post"
                               action="{% url 'cancel_booking' b.id %}"
                               class="d-inline">
                             {% csrf_token %}
                             <button type="submit"
                                     class="btn btn-sm btn-outline-danger"
-                                    onclick="return confirm('Cancel this booking?');">
-                                Cancel
+                                    onclick="return confirm('Cancel this booking?');"
+                                    title="Cancel">
+                                <i class="bi bi-x-lg"></i>
                             </button>
                         </form>
                         {% else %}

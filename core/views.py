@@ -18,7 +18,7 @@ from django.conf import settings
 # === CUSTOM IMPORTS ===
 from .models import Space, Booking, BlockedDate, Notification, Bus, BusBooking, Facility, SpaceType
 from .decorators import approval_required
-from .forms import SpaceForm, FacilityForm, SpaceTypeForm
+from .forms import SpaceForm, FacilityForm, SpaceTypeForm, RescheduleForm
 
 # Safe Import for Utils with Fallback
 try:
@@ -45,11 +45,11 @@ def send_notification_email(subject, message, recipients, context_type="hall"):
     except Exception as e:
         print(f"Email Error: {e}")
 
-# === QUEUE MANAGER ===
+# === QUEUE MANAGER (UPDATED FOR PRIORITY) ===
 def promote_next_waitlisted(cancelled_booking):
     """
-    Finds the next waitlisted user for the cancelled slot, 
-    promotes them to Pending, resets the clock, and notifies them.
+    Finds the next waitlisted user for the cancelled slot.
+    PRIORITY UPDATE: Sorts by Resource Type (External first) then Created At.
     """
     # Find next overlap in queue
     next_in_line = Booking.objects.filter(
@@ -59,7 +59,7 @@ def promote_next_waitlisted(cancelled_booking):
     ).filter(
         # Check time overlap
         Q(start_time__lt=cancelled_booking.end_time, end_time__gt=cancelled_booking.start_time)
-    ).order_by('created_at').first()
+    ).order_by('resource_type', 'created_at').first() # External ('External') < Internal ('Internal') alphabetically, so Ascending works
 
     if next_in_line:
         # 1. Promote Status
@@ -155,6 +155,12 @@ def book_space(request):
         expected_count = request.POST.get("expected_count")
         purpose = request.POST.get("purpose")
         faculty_name = request.POST.get("faculty_in_charge")
+        
+        # === NEW PRIORITY FIELDS ===
+        resource_type = request.POST.get("resource_type", Booking.RESOURCE_INTERNAL)
+        resource_name = request.POST.get("resource_name", "")
+        resource_number = request.POST.get("resource_number", "")
+        
         selected_facility_ids = request.POST.getlist("facilities")
 
         if not all([space_id, date_str, start_time_str, end_time_str, expected_count, purpose]):
@@ -164,6 +170,12 @@ def book_space(request):
         if not request.user.is_staff and not faculty_name:
             messages.error(request, "Students must specify the Faculty In-Charge.")
             return redirect("book_space")
+            
+        # Validation for External Resource
+        if resource_type == Booking.RESOURCE_EXTERNAL:
+            if not resource_name or not resource_number:
+                messages.error(request, "External Events require Resource Name and Contact Number.")
+                return redirect("book_space")
 
         space = get_object_or_404(Space, id=space_id)
         d, st, et = parse_date(date_str), parse_time(start_time_str), parse_time(end_time_str)
@@ -180,19 +192,52 @@ def book_space(request):
         if BlockedDate.objects.filter(Q(space=space) | Q(space__isnull=True), date=d).exists():
             messages.error(request, "Date blocked."); return redirect("book_space")
 
-        # === QUEUE LOGIC START ===
-        # Check for ANY overlap (Approved, Pending, or Waitlisted)
+        # === QUEUE & CONFLICT LOGIC ===
+        
+        # Check for ANY overlap
         conflicting_bookings = Booking.objects.filter(
             space=space, date=d,
             status__in=[Booking.STATUS_PENDING, Booking.STATUS_APPROVED, Booking.STATUS_WAITLISTED]
         ).filter(Q(start_time__lt=et, end_time__gt=st))
 
-        # 1. HARD BLOCK: If overlap is APPROVED, you cannot even waitlist
-        if conflicting_bookings.filter(status=Booking.STATUS_APPROVED).exists():
-            messages.error(request, "This slot is already CONFIRMED. You cannot join the queue.")
+        # Check specifically for APPROVED conflicts (The hard block)
+        approved_conflicts = conflicting_bookings.filter(status=Booking.STATUS_APPROVED)
+        
+        # === FEATURE 1: PRIORITY CHECK ===
+        can_waitlist = True
+        
+        if approved_conflicts.exists():
+            blocker = approved_conflicts.first()
+            
+            # Logic: If I am External AND Blocker is Internal -> I can jump queue (Waitlist)
+            # Logic: If Blocker is External -> NO ONE can jump (Hard Block)
+            
+            is_my_request_external = (resource_type == Booking.RESOURCE_EXTERNAL)
+            is_blocker_internal = (blocker.resource_type == Booking.RESOURCE_INTERNAL)
+            
+            if is_my_request_external and is_blocker_internal:
+                # Priority Override Allowed
+                can_waitlist = True
+                messages.warning(request, "Slot occupied by Internal Event. As an External request, you have been placed at the TOP of the Waitlist.")
+            else:
+                can_waitlist = False # Hard Block
+
+        if not can_waitlist:
+            # === FEATURE 2: TRANSPARENCY (Show who is blocking) ===
+            blocker = approved_conflicts.first()
+            
+            # Construct Blocker Message based on Privacy Rules
+            if blocker.resource_type == Booking.RESOURCE_EXTERNAL:
+                # External: Show Resource Name & Number (Safe, usually public figure/coord)
+                msg_detail = f"Dignitary: {blocker.resource_name} (Contact: {blocker.resource_number})"
+            else:
+                # Internal: Show User Name & Email (Protect Phone)
+                msg_detail = f"Booked by: {blocker.requested_by.username} ({blocker.requested_by.email})"
+            
+            messages.error(request, f"Slot BUSY. {msg_detail}. Event: {blocker.purpose}")
             return redirect("book_space")
 
-        # 2. WAITLIST LOGIC: If overlaps exist (Pending/Waitlisted), join queue
+        # === QUEUE PLACEMENT ===
         is_waitlisted = conflicting_bookings.exists()
         
         status = Booking.STATUS_WAITLISTED if is_waitlisted else Booking.STATUS_PENDING
@@ -202,7 +247,10 @@ def book_space(request):
             space=space, requested_by=request.user, date=d, start_time=st, end_time=et,
             expected_count=int(expected_count), purpose=purpose,
             status=status, approved_by=None, faculty_in_charge=faculty_name,
-            approval_deadline=deadline
+            approval_deadline=deadline,
+            resource_type=resource_type,
+            resource_name=resource_name,
+            resource_number=resource_number
         )
         if selected_facility_ids: booking.requested_facilities.set(selected_facility_ids)
 
@@ -211,9 +259,13 @@ def book_space(request):
         admin_emails = [u.email for u in facility_admins if u.email]
 
         if is_waitlisted:
-            # We access the property defined in models.py
             position = booking.queue_position
             messages.warning(request, f"Slot busy. You are #{position} on the Waitlist.")
+            
+            # If priority override happened, notify admin specifically
+            if resource_type == Booking.RESOURCE_EXTERNAL:
+                send_notification_email("PRIORITY WAITLIST ALERT", f"High Priority External Request from {request.user.username} is waitlisted behind an Internal event.", admin_emails, "hall")
+                
             if request.user.email:
                 send_notification_email("Added to Waitlist", f"Your request is waitlisted (Position #{position}). We will notify you if the slot opens.", [request.user.email], "hall")
         else:
@@ -234,6 +286,60 @@ def book_space(request):
 def my_bookings(request):
     bookings = Booking.objects.filter(requested_by=request.user).order_by("-date", "-created_at")
     return render(request, "my_bookings.html", {"bookings": bookings})
+
+# === FEATURE 3: RESCHEDULE BOOKING ===
+@login_required
+def reschedule_booking(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id)
+    
+    # Permission Check
+    if booking.requested_by != request.user and not request.user.is_superuser:
+        messages.error(request, "You are not authorized to edit this booking.")
+        return redirect("my_bookings")
+
+    if request.method == "POST":
+        form = RescheduleForm(request.POST, instance=booking)
+        if form.is_valid():
+            # 1. Capture OLD details before saving (to free up the old slot)
+            old_space = booking.space
+            old_date = booking.date
+            old_start = booking.start_time
+            old_end = booking.end_time
+            
+            # Temporary object with new data (don't save yet)
+            new_data = form.save(commit=False)
+            
+            # 2. Check Availability for NEW slot
+            conflicting = Booking.objects.filter(
+                space=booking.space,
+                date=new_data.date,
+                status__in=[Booking.STATUS_APPROVED, Booking.STATUS_PENDING]
+            ).filter(
+                Q(start_time__lt=new_data.end_time, end_time__gt=new_data.start_time)
+            ).exclude(id=booking.id) # Exclude self
+            
+            if conflicting.exists():
+                messages.error(request, "The new date/time is unavailable. Please choose another.")
+            else:
+                # 3. Save Changes
+                form.save()
+                messages.success(request, "Rescheduled successfully.")
+                
+                # 4. CRITICAL: Trigger Promotion on the OLD slot
+                # We create a dummy object to represent the "cancelled" old slot logic
+                class OldSlotStub:
+                    space = old_space
+                    date = old_date
+                    start_time = old_start
+                    end_time = old_end
+                
+                promote_next_waitlisted(OldSlotStub)
+                
+                return redirect("my_bookings")
+    else:
+        form = RescheduleForm(instance=booking)
+
+    return render(request, "reschedule_booking.html", {"form": form, "booking": booking})
 
 @login_required
 def cancel_booking(request, booking_id):
@@ -290,12 +396,16 @@ def admin_dashboard(request):
     today = timezone.localdate()
     next_week = today + timedelta(days=7)
     
-    pending_bookings = Booking.objects.filter(status=Booking.STATUS_PENDING).select_related("space", "requested_by").order_by("approval_deadline")
+    # CRITICAL UPDATE: Fetch both PENDING and WAITLISTED for the dashboard table
+    action_queue = Booking.objects.filter(
+        status__in=[Booking.STATUS_PENDING, Booking.STATUS_WAITLISTED]
+    ).select_related("space", "requested_by").order_by("date", "start_time", "resource_type", "created_at")
+
     upcoming_bookings = Booking.objects.filter(status=Booking.STATUS_APPROVED, date__range=[today, next_week]).select_related("space", "requested_by").order_by("date", "start_time")
     
     stats = {
         "today_total": Booking.objects.filter(date=today).count(),
-        "pending": pending_bookings.count(),
+        "pending": Booking.objects.filter(status=Booking.STATUS_PENDING).count(),
         "blocked": BlockedDate.objects.count(),
         "waiting_users_count": User.objects.filter(groups__isnull=True, is_active=True).exclude(is_superuser=True).count()
     }
@@ -305,9 +415,14 @@ def admin_dashboard(request):
     booking_counts = [Booking.objects.filter(space=s, status=Booking.STATUS_APPROVED).count() for s in chart_spaces]
 
     return render(request, "admin_dashboard.html", {
-        "bookings": pending_bookings, "upcoming_bookings": upcoming_bookings, "stats": stats,
-        "all_spaces": chart_spaces, "waiting_users": User.objects.filter(groups__isnull=True, is_active=True).exclude(is_superuser=True),
-        "space_names_json": json.dumps(space_names), "booking_counts_json": json.dumps(booking_counts), "now": now
+        "bookings": action_queue,
+        "upcoming_bookings": upcoming_bookings, 
+        "stats": stats,
+        "all_spaces": chart_spaces, 
+        "waiting_users": User.objects.filter(groups__isnull=True, is_active=True).exclude(is_superuser=True),
+        "space_names_json": json.dumps(space_names), 
+        "booking_counts_json": json.dumps(booking_counts), 
+        "now": now
     })
 
 @user_passes_test(is_dashboard_authorized)
@@ -325,7 +440,47 @@ def booking_history(request):
 @user_passes_test(is_dashboard_authorized)
 def approve_booking(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
-    if request.method == "POST" and booking.status == Booking.STATUS_PENDING:
+    
+    # 1. SECURITY: Only process if status is valid for approval
+    if request.method == "POST" and booking.status in [Booking.STATUS_PENDING, Booking.STATUS_WAITLISTED]:
+        
+        # 2. CONFLICT CHECK: Find ALL Approved/Pending bookings holding this slot
+        blocking_bookings = Booking.objects.filter(
+            space=booking.space,
+            date=booking.date,
+            status__in=[Booking.STATUS_APPROVED, Booking.STATUS_PENDING]
+        ).filter(
+            Q(start_time__lt=booking.end_time, end_time__gt=booking.start_time)
+        ).exclude(id=booking.id)
+
+        # 3. GOD MODE: Loop through ALL blockers and BUMP them to Waitlist
+        if blocking_bookings.exists():
+            count = 0
+            for blocker in blocking_bookings:
+                # BUMP TO WAITLIST instead of Rejecting
+                blocker.status = Booking.STATUS_WAITLISTED 
+                # Reset approval info just in case
+                blocker.approved_by = None
+                blocker.approval_deadline = None 
+                blocker.save()
+                count += 1
+                
+                # Notify the person who got bumped
+                Notification.objects.create(
+                    user=blocker.requested_by, 
+                    message=f"ALERT: Your booking for {blocker.space.name} was moved to Waitlist due to a Priority Event."
+                )
+                if blocker.requested_by.email:
+                    send_notification_email(
+                        "Booking Moved to Waitlist", 
+                        f"Your booking for {blocker.space.name} on {blocker.date} has been moved to the Waitlist to accommodate a high-priority institutional event.\n\nIf the slot becomes free, you will be automatically notified.", 
+                        [blocker.requested_by.email], 
+                        "hall"
+                    )
+            
+            messages.warning(request, f"Note: {count} conflicting booking(s) were moved to the Waitlist.")
+
+        # 4. APPROVE the requested booking
         booking.status = Booking.STATUS_APPROVED
         booking.approved_by = request.user
         booking.save()
@@ -333,7 +488,7 @@ def approve_booking(request, booking_id):
         Notification.objects.create(user=booking.requested_by, message=f"APPROVED: {booking.space.name}")
         if booking.requested_by.email: send_notification_email("Booking Approved", f"Your booking for {booking.space.name} is confirmed.", [booking.requested_by.email], "hall")
 
-        # === NOTIFY STANDBY USERS (Don't Reject) ===
+        # 5. NOTIFY STANDBY USERS (The remaining waitlist)
         waitlisted_users = Booking.objects.filter(
             space=booking.space, date=booking.date, status=Booking.STATUS_WAITLISTED
         ).filter(Q(start_time__lt=booking.end_time, end_time__gt=booking.start_time))
@@ -343,13 +498,17 @@ def approve_booking(request, booking_id):
             if wb.requested_by.email:
                 send_notification_email("Waitlist Update: On Standby", f"The slot for {booking.space.name} has been confirmed for another user. You remain on the waitlist in case of cancellation.", [wb.requested_by.email], "hall")
 
-        messages.success(request, "Booking approved. Waitlist users notified.")
-    return redirect("admin_dashboard")
+        messages.success(request, "Booking approved. Conflicting bookings were handled.")
+    
+    # Smart Redirect
+    return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
 
 @user_passes_test(is_dashboard_authorized)
 def reject_booking(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
-    if request.method == "POST" and booking.status == Booking.STATUS_PENDING:
+    
+    # UPDATE: Allow rejection of WAITLISTED items
+    if request.method == "POST" and booking.status in [Booking.STATUS_PENDING, Booking.STATUS_WAITLISTED]:
         booking.status = Booking.STATUS_REJECTED
         booking.approved_by = request.user
         booking.save()
@@ -361,7 +520,9 @@ def reject_booking(request, booking_id):
         promote_next_waitlisted(booking)
 
         messages.success(request, "Booking rejected. Queue updated.")
-    return redirect("admin_dashboard")
+    
+    # Smart Redirect
+    return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
 
 @user_passes_test(is_dashboard_authorized)
 def admin_cancel_booking(request, booking_id):
