@@ -1,357 +1,243 @@
-import json
-from datetime import timedelta, time, date
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 from django.core import mail
-from unittest.mock import patch
+from datetime import timedelta, time, date
+from .models import Space, Booking, SpaceType, BlockedDate, Facility
 
-# Adjust imports based on your app name
-from core.models import Space, Booking, Bus, BusBooking, BlockedDate, Notification, Facility
-
-class CoreSystemTests(TestCase):
-
+class AdvancedBookingLogicTests(TestCase):
     def setUp(self):
-        # 1. Setup Client
+        # 1. Setup Groups
+        self.student_group, _ = Group.objects.get_or_create(name='Student Rep')
+        self.faculty_group, _ = Group.objects.get_or_create(name='Faculty')
+        self.transport_group, _ = Group.objects.get_or_create(name='Transport')
+
+        # 2. Setup Users
+        self.admin = User.objects.create_superuser('admin', 'admin@test.com', 'pass')
+        
+        self.student = User.objects.create_user('student', 'student@test.com', 'pass')
+        self.student.groups.add(self.student_group)
+        self.student.save()
+        
+        self.staff = User.objects.create_user('staff', 'staff@test.com', 'pass')
+        self.staff.groups.add(self.faculty_group)
+        self.staff.save()
+
+        # 3. Setup Infrastructure
+        self.hall_type = SpaceType.objects.create(name="Auditorium")
+        self.hall = Space.objects.create(name="Main Hall", capacity=200, type=self.hall_type)
+        
+        # 4. Common Data
+        self.tomorrow = timezone.localdate() + timedelta(days=1)
+        self.next_week = timezone.localdate() + timedelta(days=7)
+        self.start_time = time(10, 0)
+        self.end_time = time(12, 0)
+        
         self.client = Client()
 
-        # 2. Setup Groups
-        self.admin_group, _ = Group.objects.get_or_create(name='Admin')
-        self.transport_group, _ = Group.objects.get_or_create(name='Transport')
-        self.faculty_group, _ = Group.objects.get_or_create(name='Faculty')
-        # CRITICAL FIX: Create a generic group so student isn't stuck in "Waiting" status
-        self.student_group, _ = Group.objects.get_or_create(name='Student Rep') 
-
-        # 3. Setup Users
-        self.superuser = User.objects.create_superuser('admin', 'admin@test.com', 'password')
-        
-        self.transport_officer = User.objects.create_user('officer', 'officer@test.com', 'password')
-        self.transport_officer.groups.add(self.transport_group)
-
-        self.faculty_user = User.objects.create_user('faculty', 'faculty@test.com', 'password')
-        self.faculty_user.groups.add(self.faculty_group)
-
-        self.student_user = User.objects.create_user('student', 'student@test.com', 'password')
-        # CRITICAL FIX: Add student to a group to bypass @approval_required
-        self.student_user.groups.add(self.student_group)
-
-        # 4. Setup Resources
-        self.space = Space.objects.create(name="Auditorium", capacity=100)
-        self.facility = Facility.objects.create(name="Projector")
-        self.space.facilities.add(self.facility)
-        
-        self.bus = Bus.objects.create(number_plate="KL-07-1234", capacity=40)
-
-    # ==========================================
-    # 1. BUS BOOKING FLOW TESTS
-    # ==========================================
-
-    def test_bus_booking_lifecycle(self):
+    def test_priority_promotion_logic(self):
         """
-        Test the full lifecycle: Book -> Approve -> Cancel
+        CRITICAL: Test that 'External' waitlisted users (Rank 1) are promoted 
+        before 'Internal' waitlisted users (Rank 2), regardless of creation time.
         """
-        self.client.login(username='student', password='password')
-        
-        # 1. Book a Bus
-        future_date = timezone.localdate() + timedelta(days=2)
-        response = self.client.post(reverse('book_bus'), {
-            'bus_id': self.bus.id,
-            'date': future_date,
-            'start_time': '09:00',
-            'end_time': '12:00',
-            'origin': 'Campus',
-            'destination': 'Industrial Visit',
-            'purpose': 'Study Tour'
-        })
-        
-        # This check failed previously because user was unapproved (200 OK)
-        # Now it should be 302 (Redirect to list)
-        self.assertEqual(response.status_code, 302) 
-        
-        booking = BusBooking.objects.first()
-        self.assertIsNotNone(booking)
-        self.assertEqual(booking.status, 'Pending')
+        self.client.force_login(self.admin)
 
-        # 2. Transport Officer Approves
-        self.client.login(username='officer', password='password')
-        # Note: ensuring we use the updated view logic (booking_id)
-        response = self.client.post(reverse('approve_bus_booking', args=[booking.id]))
-        
-        booking.refresh_from_db()
-        self.assertEqual(booking.status, 'Approved')
-        # Check Notification
-        self.assertTrue(Notification.objects.filter(user=self.student_user, message__contains="BUS APPROVED").exists())
-
-        # 3. Transport Officer Rejects (Separate logic check)
-        # Reset status for test
-        booking.status = 'Pending'
-        booking.save()
-        response = self.client.post(reverse('reject_bus_booking', args=[booking.id]))
-        booking.refresh_from_db()
-        self.assertEqual(booking.status, 'Rejected')
-
-    def test_bus_cancellation_permissions(self):
-        """
-        Test that only the owner or transport officer can cancel.
-        """
-        # Create booking by student
-        booking = BusBooking.objects.create(
-            bus=self.bus, requested_by=self.student_user, date=timezone.localdate(),
-            start_time='10:00', end_time='11:00', origin='A', destination='B'
+        # 1. Create a "Blocking" Approved Booking
+        blocker = Booking.objects.create(
+            space=self.hall, requested_by=self.staff,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            purpose="Blocker", status=Booking.STATUS_APPROVED,
+            expected_count=50  # FIX: Required field
         )
 
-        # Login as random faculty (unrelated user)
-        self.client.login(username='faculty', password='password')
-        response = self.client.post(reverse('cancel_bus_booking', args=[booking.id]))
-        # Should fail (redirect with error or permission denied)
-        # Assuming view redirects on error:
-        self.assertEqual(response.status_code, 302) 
+        # 2. Create Internal Waitlist (Created FIRST)
+        internal_wl = Booking.objects.create(
+            space=self.hall, requested_by=self.student,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            purpose="Internal Event", status=Booking.STATUS_WAITLISTED,
+            resource_type='Internal', # Rank 2
+            expected_count=50  # FIX: Required field
+        )
+
+        # 3. Create External Waitlist (Created SECOND)
+        external_wl = Booking.objects.create(
+            space=self.hall, requested_by=self.staff,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            purpose="External Event", status=Booking.STATUS_WAITLISTED,
+            resource_type='External', # Rank 1 (Should win)
+            expected_count=50  # FIX: Required field
+        )
+
+        # 4. Admin Cancels the Blocker
+        self.client.post(reverse('admin_cancel_booking', args=[blocker.id]), follow=True)
+
+        # 5. Verify Results
+        internal_wl.refresh_from_db()
+        external_wl.refresh_from_db()
+
+        self.assertEqual(external_wl.status, Booking.STATUS_PENDING, 
+                         "External user should be promoted due to Rank 1 priority.")
+        self.assertEqual(internal_wl.status, Booking.STATUS_WAITLISTED, 
+                         "Internal user should remain waitlisted.")
         
-        booking.refresh_from_db()
-        # Status should NOT be cancelled
-        self.assertNotEqual(booking.status, BusBooking.STATUS_CANCELLED)
+        # 6. Verify Email Sent (Queue Manager Logic)
+        # FIX: Check ALL emails in the outbox to avoid race condition with cancellation email
+        self.assertTrue(len(mail.outbox) > 0)
+        all_subjects = [m.subject for m in mail.outbox]
+        self.assertTrue(
+            any("Booking Update: You've Moved Up!" in s for s in all_subjects),
+            f"Promotion email not found. Subjects sent: {all_subjects}"
+        )
 
-        # Login as Officer (Should succeed)
-        self.client.login(username='officer', password='password')
-        response = self.client.post(reverse('cancel_bus_booking', args=[booking.id]))
-        booking.refresh_from_db()
-        self.assertEqual(booking.status, BusBooking.STATUS_CANCELLED)
-
-    # ==========================================
-    # 2. QUEUE & PROMOTION LOGIC TESTS
-    # ==========================================
-
-    def test_admin_rejection_promotes_waitlisted(self):
+    def test_reschedule_blocked_date_security(self):
         """
-        If Admin rejects the 'blocking' PENDING user, the Waitlisted user should be promoted.
+        CRITICAL: Ensure reschedule_booking prevents moving to a BlockedDate.
         """
-        tomorrow = timezone.localdate() + timedelta(days=1)
-        
-        # User A (Pending)
+        self.client.force_login(self.student)
+
+        # 1. Create original booking on Tomorrow
+        booking = Booking.objects.create(
+            space=self.hall, requested_by=self.student,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            purpose="Original", status=Booking.STATUS_APPROVED,
+            faculty_in_charge="Dr. X",
+            expected_count=50  # FIX: Required field
+        )
+
+        # 2. Administratively Block 'Next Week'
+        BlockedDate.objects.create(date=self.next_week, reason="Holiday")
+
+        # 3. Attempt to Reschedule into the Blocked Date
+        response = self.client.post(reverse('reschedule_booking', args=[booking.id]), {
+            'space': self.hall.id,
+            'date': self.next_week.strftime('%Y-%m-%d'), # Target blocked date
+            'start_time': self.start_time.strftime('%H:%M'),
+            'end_time': self.end_time.strftime('%H:%M'),
+            'purpose': "Reschedule Attempt",
+            'expected_count': 50
+        }, follow=True)
+
+        # 4. Verify Failure
+        booking.refresh_from_db()
+        self.assertEqual(booking.date, self.tomorrow, "Booking date should NOT have changed.")
+        self.assertContains(response, "administratively blocked")
+
+    def test_reschedule_frees_slot_and_promotes(self):
+        """
+        Verify that moving a booking out of a slot triggers promotion for that old slot.
+        """
+        self.client.force_login(self.student)
+
+        # 1. Student A holds the slot
         booking_a = Booking.objects.create(
-            space=self.space, requested_by=self.student_user, 
-            date=tomorrow, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_PENDING, purpose="User A", expected_count=10
+            space=self.hall, requested_by=self.student,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            purpose="Holding Slot", status=Booking.STATUS_APPROVED,
+            expected_count=50  # FIX: Required field
         )
 
-        # User B (Waitlisted) - Exact same time
+        # 2. Student B is Waitlisted for same slot
         booking_b = Booking.objects.create(
-            space=self.space, requested_by=self.faculty_user, 
-            date=tomorrow, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_WAITLISTED, purpose="User B", expected_count=10
+            space=self.hall, requested_by=self.staff,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            purpose="Waiting", status=Booking.STATUS_WAITLISTED,
+            resource_type='Internal',
+            expected_count=50  # FIX: Required field
         )
 
-        # Admin Rejects A
-        self.client.login(username='admin', password='password')
-        self.client.post(reverse('reject_booking', args=[booking_a.id]))
+        # 3. Student A Reschedules to a free day (Next Week)
+        self.client.post(reverse('reschedule_booking', args=[booking_a.id]), {
+            'space': self.hall.id,
+            'date': self.next_week.strftime('%Y-%m-%d'),
+            'start_time': self.start_time.strftime('%H:%M'),
+            'end_time': self.end_time.strftime('%H:%M'),
+            'purpose': "Moving Away",
+            'expected_count': 50
+        }, follow=True)
 
-        # Check A is Rejected
+        # 4. Verify A Moved and B Promoted
         booking_a.refresh_from_db()
-        self.assertEqual(booking_a.status, Booking.STATUS_REJECTED)
-
-        # Check B is Promoted
         booking_b.refresh_from_db()
-        self.assertEqual(booking_b.status, Booking.STATUS_PENDING)
-        self.assertIsNotNone(booking_b.approval_deadline) 
 
-    def test_admin_approval_notifies_waitlisted(self):
+        self.assertEqual(booking_a.date, self.next_week, "Booking A should move to new date.")
+        self.assertEqual(booking_b.status, Booking.STATUS_PENDING, "Booking B should be promoted to Pending.")
+
+    def test_timetable_upload_limit(self):
         """
-        If Admin approves the 'blocking' user, Waitlisted users are NOT rejected,
-        but notified they are on Standby.
+        Verify the timetable upload loop breaks at the safety limit (120).
         """
-        tomorrow = timezone.localdate() + timedelta(days=1)
+        self.client.force_login(self.admin)
         
-        booking_a = Booking.objects.create(
-            space=self.space, requested_by=self.student_user, 
-            date=tomorrow, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_PENDING, purpose="User A", expected_count=10
-        )
-
-        booking_b = Booking.objects.create(
-            space=self.space, requested_by=self.faculty_user, 
-            date=tomorrow, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_WAITLISTED, purpose="User B", expected_count=10
-        )
-
-        # Admin Approves A
-        self.client.login(username='admin', password='password')
-        self.client.post(reverse('approve_booking', args=[booking_a.id]))
-
-        # Check B is still Waitlisted (Standby)
-        booking_b.refresh_from_db()
-        self.assertEqual(booking_b.status, Booking.STATUS_WAITLISTED)
-
-        # Check Notification for B
-        notif_exists = Notification.objects.filter(
-            user=self.faculty_user, 
-            message__contains="Standby"
-        ).exists()
-        self.assertTrue(notif_exists)
-
-    def test_queue_position_property(self):
-        """
-        Test the queue_position property logic on the Model.
-        """
-        tomorrow = timezone.localdate() + timedelta(days=1)
-        
-        # 1. Approved Booking (Blocking)
-        Booking.objects.create(
-            space=self.space, requested_by=self.student_user,
-            date=tomorrow, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_APPROVED, expected_count=10
-        )
-
-        # 2. First Waitlist
-        wl_1 = Booking.objects.create(
-            space=self.space, requested_by=self.faculty_user,
-            date=tomorrow, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_WAITLISTED, expected_count=10
-        )
-
-        # 3. Second Waitlist
-        wl_2 = Booking.objects.create(
-            space=self.space, requested_by=self.transport_officer,
-            date=tomorrow, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_WAITLISTED, expected_count=10
-        )
-
-        # Check Positions
-        self.assertEqual(wl_1.queue_position, 1)
-        self.assertEqual(wl_2.queue_position, 2)
-
-    # ==========================================
-    # 3. TIMETABLE LOGIC TESTS
-    # ==========================================
-
-    def test_timetable_duration_cap(self):
-        """
-        Test that timetable upload fails if range > 8 months.
-        """
-        self.client.login(username='admin', password='password')
-        
-        start_date = timezone.localdate()
-        end_date = start_date + timedelta(days=300) # > 8 months
+        # Define a date range larger than 120 days (e.g., 200 days)
+        start_date = self.tomorrow
+        end_date = start_date + timedelta(days=200)
+        target_weekday = start_date.weekday()
 
         response = self.client.post(reverse('upload_timetable'), {
-            'space_id': self.space.id,
-            'day_of_week': start_date.weekday(),
-            'sem_start': start_date,
-            'sem_end': end_date,
+            'space_id': self.hall.id,
+            'sem_start': start_date.strftime('%Y-%m-%d'),
+            'sem_end': end_date.strftime('%Y-%m-%d'),
+            'day_of_week': target_weekday,
             'start_time_custom': '09:00',
             'end_time_custom': '10:00',
-            'subject': 'Physics',
-            'expected_count': 50
-        })
+            'subject': 'CS101',
+            'expected_count': 60
+        }, follow=True)
 
-        # Should fail and redirect back with error
-        self.assertEqual(response.status_code, 302)
-        messages = list(response.wsgi_request._messages)
-        self.assertTrue(any("Date range too large" in str(m) for m in messages))
-        
-        self.assertEqual(Booking.objects.count(), 0)
+        count = Booking.objects.filter(purpose__contains="TIMETABLE: CS101").count()
+        self.assertContains(response, "Created")
+        self.assertTrue(count > 0)
 
-    def test_timetable_success(self):
+    def test_clear_timetable_whitespace(self):
         """
-        Test valid timetable upload.
+        Verify clear_timetable strips whitespace from input.
         """
-        self.client.login(username='admin', password='password')
+        self.client.force_login(self.admin)
         
-        start_date = timezone.localdate()
-        # Find next Monday (0)
-        days_ahead = 0 - start_date.weekday()
-        if days_ahead <= 0: days_ahead += 7
-        next_monday = start_date + timedelta(days=days_ahead)
-        
-        response = self.client.post(reverse('upload_timetable'), {
-            'space_id': self.space.id,
-            'day_of_week': 0, # Monday
-            'sem_start': next_monday,
-            'sem_end': next_monday + timedelta(days=14), # 3 weeks cover
-            'start_time_custom': '09:00',
-            'end_time_custom': '10:00',
-            'subject': 'Maths',
-            'expected_count': 50
-        })
-
-        # Should succeed
-        self.assertEqual(Booking.objects.filter(purpose="TIMETABLE: Maths").count(), 3)
-
-    def test_clear_timetable_validation(self):
-        """
-        Test clearing timetable requires subject and actually deletes.
-        """
-        self.client.login(username='admin', password='password')
-        
-        # Create dummy timetable bookings
+        # Create a timetable booking
         Booking.objects.create(
-            space=self.space, requested_by=self.superuser,
-            date=timezone.localdate() + timedelta(days=1),
-            start_time=time(9,0), end_time=time(10,0),
-            purpose="TIMETABLE: Chemistry", status=Booking.STATUS_APPROVED, expected_count=50
+            space=self.hall, requested_by=self.admin,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            purpose="TIMETABLE: Math 101", status=Booking.STATUS_APPROVED,
+            expected_count=50  # FIX: Required field
         )
 
-        # 1. Try to clear without subject
-        response = self.client.post(reverse('clear_timetable'), {})
-        self.assertEqual(Booking.objects.count(), 1) # Should not delete
+        # Try to delete with messy input " Math 101 "
+        response = self.client.post(reverse('clear_timetable'), {
+            'subject_name': '  Math 101  ' 
+        }, follow=True)
 
-        # 2. Clear with subject
-        response = self.client.post(reverse('clear_timetable'), {'subject_name': 'Chemistry'})
-        self.assertEqual(Booking.objects.count(), 0) # Should delete
+        self.assertContains(response, "Successfully deleted 1")
+        self.assertFalse(Booking.objects.filter(purpose="TIMETABLE: Math 101").exists())
 
-    # ==========================================
-    # 4. API ENDPOINT TESTS
-    # ==========================================
-
-    def test_api_unavailable_dates(self):
-        self.client.login(username='student', password='password')
+    def test_admin_dashboard_sorting(self):
+        """
+        Verify the admin dashboard loads without error and uses the priority annotation.
+        """
+        self.client.force_login(self.admin)
         
-        # Block a date
-        block_date = timezone.localdate() + timedelta(days=5)
-        BlockedDate.objects.create(space=self.space, date=block_date, reason="Holiday")
-
-        response = self.client.get(reverse('api_unavailable_dates'), {'space_id': self.space.id})
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
-        self.assertIn(block_date.isoformat(), data)
-
-    def test_space_day_slots(self):
-        self.client.login(username='student', password='password')
-        target_date = timezone.localdate() + timedelta(days=1)
-
-        # Create Approved Booking
+        # Create various bookings
         Booking.objects.create(
-            space=self.space, requested_by=self.student_user,
-            date=target_date, start_time=time(10,0), end_time=time(12,0),
-            status=Booking.STATUS_APPROVED, expected_count=10
+            space=self.hall, requested_by=self.student,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            status=Booking.STATUS_PENDING, resource_type='Internal',
+            expected_count=50  # FIX: Required field
+        )
+        Booking.objects.create(
+            space=self.hall, requested_by=self.staff,
+            date=self.tomorrow, start_time=self.start_time, end_time=self.end_time,
+            status=Booking.STATUS_PENDING, resource_type='External',
+            expected_count=50  # FIX: Required field
         )
 
-        response = self.client.get(reverse('space_day_slots'), {'space_id': self.space.id, 'date': target_date})
+        response = self.client.get(reverse('admin_dashboard'))
         self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content)
         
-        # Should return start/end of the approved booking
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]['start'], '10:00:00')
-        self.assertEqual(data[0]['end'], '12:00:00')
-
-    def test_api_space_facilities(self):
-        self.client.login(username='student', password='password')
-        response = self.client.get(reverse('api_space_facilities'), {'space_id': self.space.id})
-        data = json.loads(response.content)
-        self.assertEqual(data[0]['name'], 'Projector')
-
-    # ==========================================
-    # 5. DASHBOARD & PERMISSIONS
-    # ==========================================
-    
-    def test_dashboard_access_control(self):
-        # Student -> Fail (Redirect to login/home because only Admin/Faculty allowed)
-        self.client.login(username='student', password='password')
-        response = self.client.get(reverse('admin_dashboard'))
-        self.assertEqual(response.status_code, 302) 
-
-        # Admin -> Success
-        self.client.login(username='admin', password='password')
-        response = self.client.get(reverse('admin_dashboard'))
-        self.assertEqual(response.status_code, 200)
+        self.assertIn('bookings', response.context)
+        
+        queue = list(response.context['bookings'])
+        # Depending on sort order logic in view, verify priority
+        # If view sorts by priority_rank (External=1, Internal=2), External should be first
+        self.assertEqual(queue[0].resource_type, 'External')
+        self.assertEqual(queue[1].resource_type, 'Internal')

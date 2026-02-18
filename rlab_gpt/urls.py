@@ -21,7 +21,7 @@ urlpatterns = [
     path('admin/resources/type/delete/<int:pk>/', views.delete_space_type, name='delete_space_type'),
     path('admin/resources/type/edit/<int:pk>/', views.edit_space_type, name='edit_space_type'),
 
-    # NEW: Facility Actions (Delete & Edit)
+    # Facility Actions (Delete & Edit)
     path('admin/resources/facility/delete/<int:pk>/', views.delete_facility, name='delete_facility'),
     path('admin/resources/facility/edit/<int:pk>/', views.edit_facility, name='edit_facility'),
 
@@ -62,6 +62,9 @@ urlpatterns = [
     path('book/', views.book_space, name='book_space'),
     path('my-bookings/', views.my_bookings, name='my_bookings'),
     path('my-bookings/<int:booking_id>/cancel/', views.cancel_booking, name='cancel_booking'),
+    
+    # === NEW: Reschedule Booking ===
+    path('my-bookings/<int:booking_id>/reschedule/', views.reschedule_booking, name='reschedule_booking'),
 
     # Calendar & API
     path('calendar/', views.calendar_view, name='calendar'),

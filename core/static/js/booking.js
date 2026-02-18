@@ -4,6 +4,12 @@ document.addEventListener("DOMContentLoaded", function() {
     const slotsBox = document.getElementById("existingSlots");
     const facilitiesContainer = document.getElementById("facilitiesContainer");
 
+    // === NEW: PRIORITY LOGIC ELEMENTS ===
+    const resourceType = document.getElementById('resourceType');
+    const externalFields = document.getElementById('externalFields');
+    const resourceName = document.getElementById('resourceName');
+    const resourceNumber = document.getElementById('resourceNumber');
+
     // === 1. DISABLE PAST DATES ===
     if (dateInput) {
         const today = new Date();
@@ -18,20 +24,18 @@ document.addEventListener("DOMContentLoaded", function() {
         // When Space Changes: Load Facilities, Blocked Dates, and Slots
         spaceSelect.addEventListener("change", function() {
             loadFacilities();
-            checkUnavailableDates(); // Your logic (renamed)
+            checkUnavailableDates();
             loadSlots();
         });
 
         // When Date Changes: Check validity and Load Slots
         dateInput.addEventListener("change", function() {
-            // We check blocked dates on 'change' to reset if invalid
             checkUnavailableDates().then(isValid => {
                 if (isValid) loadSlots();
             });
         });
 
         // === 3. AUTO-TRIGGER ON LOAD ===
-        // If Django pre-selected a space (e.g. ?space_id=1)
         if (spaceSelect.value) {
             loadFacilities();
             checkUnavailableDates();
@@ -41,7 +45,37 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // === 4. CHECK UNAVAILABLE DATES (From your code) ===
+    // === NEW: PRIORITY TOGGLE LISTENER ===
+    if (resourceType) {
+        // Run once on load (in case browser cached the selection)
+        toggleExternalFields();
+
+        // Run on change
+        resourceType.addEventListener('change', toggleExternalFields);
+    }
+
+    // === FUNCTION: Toggle External Fields ===
+    function toggleExternalFields() {
+        if (!resourceType || !externalFields) return;
+
+        if (resourceType.value === 'External') {
+            externalFields.classList.remove('d-none');
+            if(resourceName) resourceName.setAttribute('required', 'required');
+            if(resourceNumber) resourceNumber.setAttribute('required', 'required');
+        } else {
+            externalFields.classList.add('d-none');
+            if(resourceName) {
+                resourceName.removeAttribute('required');
+                resourceName.value = ''; // Clear value
+            }
+            if(resourceNumber) {
+                resourceNumber.removeAttribute('required');
+                resourceNumber.value = ''; // Clear value
+            }
+        }
+    }
+
+    // === 4. CHECK UNAVAILABLE DATES ===
     async function checkUnavailableDates() {
         if (!spaceSelect.value) return true;
 
@@ -50,12 +84,12 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!res.ok) return true;
 
             const data = await res.json(); 
-            const unavailable = new Set(data); // e.g. ["2026-01-30"]
+            const unavailable = new Set(data); 
             const selectedDate = dateInput.value;
 
             if (selectedDate && unavailable.has(selectedDate)) {
                 alert("This date is completely blocked for the selected space.");
-                dateInput.value = ""; // Clear invalid date
+                dateInput.value = ""; 
                 if(slotsBox) slotsBox.classList.add("d-none");
                 return false;
             }
@@ -87,13 +121,17 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             slotsBox.classList.remove("d-none");
-            slotsBox.innerHTML = "<b>Already booked time slots:</b><br>" +
-                data.map(t => `❌ ${t.start} – ${t.end}`).join("<br>");
+            // Use flex-wrap badges for a cleaner look than a raw list
+            const slotsHtml = data.map(t => 
+                `<span class="badge bg-danger me-1 mb-1">❌ ${t.start} – ${t.end}</span>`
+            ).join(" ");
+            
+            slotsBox.innerHTML = `<div class="small text-muted mb-1">Already booked:</div>${slotsHtml}`;
         })
         .catch(err => console.error("Error loading slots:", err));
     }
 
-    // === 6. LOAD FACILITIES (Dynamic) ===
+    // === 6. LOAD FACILITIES ===
     function loadFacilities() {
         const spaceId = spaceSelect.value;
         
