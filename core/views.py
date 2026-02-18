@@ -5,7 +5,10 @@ from django.contrib.auth import logout, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm 
 from django.contrib.auth.models import User, Group
-from django.db.models import Q, ProtectedError
+# FIX: Added transaction for race condition protection
+from django.db import transaction
+# FIX: Added Case, When, Value, IntegerField for explicit priority sorting
+from django.db.models import Q, ProtectedError, Case, When, Value, IntegerField
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -45,53 +48,76 @@ def send_notification_email(subject, message, recipients, context_type="hall"):
     except Exception as e:
         print(f"Email Error: {e}")
 
-# === QUEUE MANAGER (UPDATED FOR PRIORITY) ===
+# === QUEUE MANAGER (UPDATED FOR PRIORITY & SAFETY) ===
 def promote_next_waitlisted(cancelled_booking):
     """
     Finds the next waitlisted user for the cancelled slot.
-    PRIORITY UPDATE: Sorts by Resource Type (External first) then Created At.
+    PRIORITY FIX: Uses explicit Case/When annotation.
+    SAFETY FIX: Uses transaction.atomic and select_for_update.
+    PERFORMANCE FIX: Sends emails AFTER transaction commits to prevent DB locks.
     """
-    # Find next overlap in queue
-    next_in_line = Booking.objects.filter(
-        space=cancelled_booking.space,
-        date=cancelled_booking.date,
-        status=Booking.STATUS_WAITLISTED
-    ).filter(
-        # Check time overlap
-        Q(start_time__lt=cancelled_booking.end_time, end_time__gt=cancelled_booking.start_time)
-    ).order_by('resource_type', 'created_at').first() # External ('External') < Internal ('Internal') alphabetically, so Ascending works
+    promoted_booking = None
+    user_email_params = None
+    admin_email_params = None
 
-    if next_in_line:
-        # 1. Promote Status
-        next_in_line.status = Booking.STATUS_PENDING
-        
-        # 2. Reset Business Clock (Fresh 24h start)
-        next_in_line.approval_deadline = calculate_business_deadline(timezone.now())
-        next_in_line.save()
-        
-        # 3. Notify User
-        msg = f"Good News! A slot has opened up for {next_in_line.space.name}. Your request is now actively Pending approval."
-        Notification.objects.create(user=next_in_line.requested_by, message=f"Promoted: Your booking for {next_in_line.space.name} is now Pending.")
-        
-        if next_in_line.requested_by.email:
-            send_notification_email(
-                "Booking Update: You've Moved Up!",
-                f"{msg}\n\nNew Deadline for Admin Action: {next_in_line.approval_deadline.strftime('%d %b, %I:%M %p')}",
-                [next_in_line.requested_by.email],
-                "hall"
+    with transaction.atomic():
+        # Find next overlap in queue, locking the rows to prevent double-promotion
+        next_in_line = Booking.objects.select_for_update().filter(
+            space=cancelled_booking.space,
+            date=cancelled_booking.date,
+            status=Booking.STATUS_WAITLISTED
+        ).filter(
+            # Check time overlap
+            Q(start_time__lt=cancelled_booking.end_time, end_time__gt=cancelled_booking.start_time)
+        ).annotate(
+            # FIX: Assign explicit numeric priority (External=1, Internal=2, Others=3)
+            priority_rank=Case(
+                When(resource_type='External', then=Value(1)),
+                When(resource_type='Internal', then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
             )
+        ).order_by('priority_rank', 'created_at').first()
+
+        if next_in_line:
+            promoted_booking = next_in_line
             
-        # 4. Notify Admin of new active request
-        facility_admins = User.objects.filter(is_superuser=True)
-        admin_emails = [u.email for u in facility_admins if u.email]
-        if admin_emails:
-            send_notification_email(
-                f"Queue Update: New Active Request for {next_in_line.space.name}",
-                f"Previous booking was cancelled/rejected. The next user ({next_in_line.requested_by.username}) has been promoted to Pending.",
-                admin_emails,
-                "hall"
-            )
-    return next_in_line
+            # 1. Promote Status
+            next_in_line.status = Booking.STATUS_PENDING
+            # 2. Reset Business Clock (Fresh 24h start)
+            next_in_line.approval_deadline = calculate_business_deadline(timezone.now())
+            next_in_line.save()
+            
+            # 3. Notify User (DB Operation)
+            msg = f"Good News! A slot has opened up for {next_in_line.space.name}. Your request is now actively Pending approval."
+            Notification.objects.create(user=next_in_line.requested_by, message=f"Promoted: Your booking for {next_in_line.space.name} is now Pending.")
+            
+            # 4. Prepare Email Data (Don't send inside transaction)
+            if next_in_line.requested_by.email:
+                user_email_params = {
+                    'subject': "Booking Update: You've Moved Up!",
+                    'message': f"{msg}\n\nNew Deadline for Admin Action: {next_in_line.approval_deadline.strftime('%d %b, %I:%M %p')}",
+                    'recipients': [next_in_line.requested_by.email]
+                }
+                
+            # 5. Prepare Admin Email Data
+            facility_admins = User.objects.filter(is_superuser=True)
+            admin_emails = [u.email for u in facility_admins if u.email]
+            if admin_emails:
+                admin_email_params = {
+                    'subject': f"Queue Update: New Active Request for {next_in_line.space.name}",
+                    'message': f"Previous booking was cancelled/rejected. The next user ({next_in_line.requested_by.username}) has been promoted to Pending.",
+                    'recipients': admin_emails
+                }
+
+    # === SEND EMAILS (Outside Transaction) ===
+    if user_email_params:
+        send_notification_email(user_email_params['subject'], user_email_params['message'], user_email_params['recipients'], "hall")
+    
+    if admin_email_params:
+        send_notification_email(admin_email_params['subject'], admin_email_params['message'], admin_email_params['recipients'], "hall")
+
+    return promoted_booking
 
 # ================= Public / Home =================
 
@@ -300,14 +326,24 @@ def reschedule_booking(request, booking_id):
     if request.method == "POST":
         form = RescheduleForm(request.POST, instance=booking)
         if form.is_valid():
-            # 1. Capture OLD details before saving (to free up the old slot)
-            old_space = booking.space
-            old_date = booking.date
-            old_start = booking.start_time
-            old_end = booking.end_time
+            # ========================================================
+            # FIX: Fetch fresh DB copy to get the ACTUAL old values
+            # ========================================================
+            current_db_booking = Booking.objects.get(id=booking.id)
+            
+            old_space = current_db_booking.space
+            old_date = current_db_booking.date
+            old_start = current_db_booking.start_time
+            old_end = current_db_booking.end_time
+            # ========================================================
             
             # Temporary object with new data (don't save yet)
             new_data = form.save(commit=False)
+
+            # FIX: Check Blocked Dates specifically for Reschedule
+            if BlockedDate.objects.filter(Q(space=booking.space) | Q(space__isnull=True), date=new_data.date).exists():
+                messages.error(request, "The selected date is administratively blocked.")
+                return redirect("reschedule_booking", booking_id=booking.id)
             
             # 2. Check Availability for NEW slot
             conflicting = Booking.objects.filter(
@@ -325,15 +361,17 @@ def reschedule_booking(request, booking_id):
                 form.save()
                 messages.success(request, "Rescheduled successfully.")
                 
-                # 4. CRITICAL: Trigger Promotion on the OLD slot
-                # We create a dummy object to represent the "cancelled" old slot logic
+                # 4. Trigger Promotion on the OLD slot
                 class OldSlotStub:
-                    space = old_space
-                    date = old_date
-                    start_time = old_start
-                    end_time = old_end
+                    def __init__(self, space, date, start, end):
+                        self.space = space
+                        self.date = date
+                        self.start_time = start
+                        self.end_time = end
                 
-                promote_next_waitlisted(OldSlotStub)
+                # Instantiate with the DB captured variables
+                stub = OldSlotStub(old_space, old_date, old_start, old_end)
+                promote_next_waitlisted(stub)
                 
                 return redirect("my_bookings")
     else:
@@ -396,10 +434,18 @@ def admin_dashboard(request):
     today = timezone.localdate()
     next_week = today + timedelta(days=7)
     
-    # CRITICAL UPDATE: Fetch both PENDING and WAITLISTED for the dashboard table
+    # CRITICAL UPDATE: Apply Priority Logic to Admin View as well
     action_queue = Booking.objects.filter(
         status__in=[Booking.STATUS_PENDING, Booking.STATUS_WAITLISTED]
-    ).select_related("space", "requested_by").order_by("date", "start_time", "resource_type", "created_at")
+    ).annotate(
+        # FIX: Admin sees same priority as system
+        priority_rank=Case(
+            When(resource_type='External', then=Value(1)),
+            When(resource_type='Internal', then=Value(2)),
+            default=Value(3),
+            output_field=IntegerField(),
+        )
+    ).select_related("space", "requested_by").order_by("date", "start_time", "priority_rank", "created_at")
 
     upcoming_bookings = Booking.objects.filter(status=Booking.STATUS_APPROVED, date__range=[today, next_week]).select_related("space", "requested_by").order_by("date", "start_time")
     
@@ -415,7 +461,7 @@ def admin_dashboard(request):
     booking_counts = [Booking.objects.filter(space=s, status=Booking.STATUS_APPROVED).count() for s in chart_spaces]
 
     return render(request, "admin_dashboard.html", {
-        "bookings": action_queue,
+        "bookings": action_queue, 
         "upcoming_bookings": upcoming_bookings, 
         "stats": stats,
         "all_spaces": chart_spaces, 
@@ -753,7 +799,7 @@ def upload_timetable(request):
                 return redirect("upload_timetable")
 
         space = get_object_or_404(Space, id=sid)
-        curr, count, limit = s, 0, 50
+        curr, count, limit = s, 0, 120 # FIX: Increased from 50 to 120
         while curr <= e:
             if curr.weekday() == day:
                 if count >= limit:
@@ -774,7 +820,8 @@ def upload_timetable(request):
 @user_passes_test(is_dashboard_authorized)
 def clear_timetable(request):
     if request.method=="POST":
-        sub = request.POST.get("subject_name")
+        # FIX: Added .strip() to clean input
+        sub = request.POST.get("subject_name", "").strip()
         if not sub: messages.error(request, "Subject req."); return redirect("upload_timetable")
         targets = Booking.objects.filter(purpose__iexact=f"TIMETABLE: {sub}", date__gte=timezone.localdate(), status=Booking.STATUS_APPROVED)
         count = targets.count()
